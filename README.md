@@ -1,196 +1,111 @@
-# Ireland Go Dashboard 🚗🇮🇪
+# Victory Fitness Admin Dashboard
 
-A modern, feature-rich admin dashboard for managing Ireland Go's transportation services, including private transfers, day trips, multi-day tours, and transfer routes across Ireland.
+A modern, high-fidelity admin dashboard designed to manage the Victory Fitness ecosystem. This platform empowers administrators to seamlessly handle user management, video workout libraries, premium subscription tiers, fitness challenges, and comprehensive platform settings.
 
 ![React](https://img.shields.io/badge/React-18.3.1-blue?logo=react)
-![Vite](https://img.shields.io/badge/Vite-6.3.6-646CFF?logo=vite)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4.17-38B2AC?logo=tailwind-css)
+![Vite](https://img.shields.io/badge/Vite-6.0.5-646CFF?logo=vite)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0.3-38B2AC?logo=tailwind-css)
 ![Ant Design](https://img.shields.io/badge/Ant%20Design-5.23.4-0170FE?logo=ant-design)
 
-## 🌟 Features
+## Features
 
-### 📊 Dashboard & Analytics
-- Real-time statistics and metrics
-- Interactive charts and graphs
-- Performance monitoring
+### Dashboard & Analytics
 
-### 🚐 Fleet Management
-- **Vehicles**: Complete CRUD operations for fleet management
-- Vehicle details, status tracking, and maintenance records
-- Action buttons for view, edit, and delete operations
+- Real-time performance metrics and key performance indicators (KPIs).
+- Interactive charts visualizing user growth and platform engagement (powered by Recharts and Chart.js).
+- Recent active users and quick-access administration panel.
 
-### 📅 Booking Management
-- **Bookings**: View and manage all customer bookings
-- Booking details with customer information
-- Status tracking and updates
+### User & Subscriber Management
 
-### 💰 Financial Management
-- **Earnings**: Track revenue and transactions
-- Detailed transaction history
-- Financial analytics and reporting
+- **All Users**: Comprehensive data grid of all registered users with fully featured CRUD capabilities.
+- **All Subscribers**: Dedicated tracking capabilities for users with active premium subscriptions, categorizing them by tier (Silver, Gold, Platinum, Inner Circle).
+- **User Details**: Advanced modal-based view components for deep dives into specific user accounts, demographics, and contact information.
 
-### ⭐ Customer Engagement
-- **Reviews**: Manage customer reviews and ratings
-- Star rating system
-- Review moderation and responses
+### Workouts Library
 
-### 📝 Content Management
-Comprehensive content management system with four main sections:
+- Integrated centralized hub for managing the platform's intensive video workout catalog.
+- Support for Vimeo video IDs and thumbnail synchronization.
+- Categorization across varying modalities (Strength, Cardio, Core, Yoga).
+- Status toggles for Draft vs. Published visibility controls.
 
-#### 1. **Private Transfers**
-- Manage point-to-point transfer routes
-- Location-based filtering (dropdown select)
-- From/To location dropdowns (18 Irish cities)
-- Distance, pricing, and descriptions
-- Image upload with preview
+### Challenges
 
-#### 2. **Popular Day Trips**
-- Curated day trip packages
-- Duration and group type management
-- Pricing per person
-- Image gallery support
+- Create, manage, and track community fitness challenges (e.g., 30-Day Shred, Couch to 5K).
+- Track duration, difficulty levels, and current rollout statuses (Active, Upcoming, Draft).
+- Beautiful horizontal card-based structural UI.
 
-#### 3. **Popular Multi-Day Tours**
-- Extended tour packages
-- Multi-day itinerary management
-- Comprehensive tour details
-- Image upload functionality
+### Subscriptions & Plans
 
-#### 4. **Day Trips**
-- Location-based filtering (All, Dublin, Belfast, Cork, Limerick, Galway)
-- Departure city selection
-- Full CRUD operations with modals
-- Image upload with preview
+- Manage access tiers including Victory Silver, Gold, Platinum, and Inner Circle.
+- Manage pricing structures (Monthly/Yearly) and associated tier feature lists.
+- Dynamically highlight "Most Popular" or "Application Only" plans.
 
-#### 5. **Popular Transfer Routes**
-- Popular routes from major cities
-- Location filtering dropdown
-- Route descriptions and highlights
-- Distance/time information
+### Content & Platform Settings
 
-### 👥 User & Admin Management
-- **User Details**: View and manage customer accounts
-- **Create Admin**: Admin account creation and management
-- Role-based access control
+- **Rich Text Editing**: Integrated `React Quill` for dynamic editing of critical platform text pages.
+- **About Us**: Author and modify the company mission and overview framework.
+- **Privacy Policy & Terms**: Keep strict legal documents up-to-date directly from the interface.
+- **FAQ Management**: Create and organize commonly asked questions for the user support hub.
+- **Notifications System**: Global alerts mapping system updates, new registrations, and payment events.
+- **Reporting & Exports**: Incorporates `jspdf` and `html2pdf.js` for secure document exportation.
+- **Admin Profile**: Custom settings for updating basic information, credentials, and profile images.
 
-### 📢 Communication
-- **Notifications**: System-wide notification management
-- Real-time alerts and updates
+## Tech Stack
 
-### ❓ Support & Information
-- **FAQ**: Frequently asked questions management
-- Add, edit, and delete FAQ items
-- Categorized help content
+### Frontend Architecture
 
-### ⚙️ Settings & Configuration
-- **Settings**: System configuration
-- **Profile Management**: Admin profile updates
-- **Change Password**: Secure password management
-- **Privacy Policy**: Policy management
-- **Terms & Conditions**: Terms management
-- **About Us**: Company information
+- **React 18.3.1** - Component-based modern UI library.
+- **Vite 6** - Lightning-fast build tool and local development server.
 
-### 📊 Reporting
-- **Reports**: Generate and view system reports
-- Status filtering (All, Pending, Resolved, Rejected)
-- Edit report status functionality
+### Styling & UI Components
 
-## 🛠️ Tech Stack
+- **TailwindCSS 4** - Utility-first CSS framework enforcing a consistent, premium "Zen Dark" and vibrant blue/indigo gradient aesthetic.
+- **Ant Design 5** - Robust enterprise-level UI components tailored for data-heavy sections like user tables, pagination, and modals.
+- **React Icons** - Comprehensive iconography utilizing `Fa`, `Md`, `Io5`, and `Lu`.
 
-### Frontend Framework
-- **React 18.3.1** - Modern UI library
-- **Vite 6.3.6** - Fast build tool and dev server
+### Data & Utility Integration
 
-### Styling
-- **TailwindCSS 3.4.17** - Utility-first CSS framework
-- **Ant Design 5.23.4** - Enterprise-level UI components
-- Custom gradient themes and modern design patterns
+- **React Router DOM 7** - Seamless client-side routing with nested layout hierarchy.
+- **React Quill** - Powerful rich text content editor.
+- **Recharts & Chart.js** - Responsive and declarative charting libraries for the core dashboard.
+- **Day.js** - Lightweight library for advanced localized date formatting.
+- **JWT Decode** - Secure token parsing and state authentication checks.
 
-### Routing
-- **React Router DOM 7.1.1** - Client-side routing
-
-### Icons
-- **React Icons 5.4.0** - Comprehensive icon library
-  - Feather Icons (Fi)
-  - Ionicons (Io)
-  - Font Awesome (Fa)
-  - Material Design (Md)
-
-### Form Handling
-- **React Hook Form 7.54.2** - Performant form validation
-
-## 📁 Project Structure
+## Project Structure
 
 ```
-ireland-go-dashboard/
+victory-fitness-dashboard/
 ├── src/
-│   ├── layout/
-│   │   └── MainLayout.jsx          # Main application layout
-│   ├── pages/
-│   │   ├── auth/                   # Authentication pages
-│   │   ├── dashboard/              # Dashboard home
-│   │   ├── Bookings/               # Booking management
-│   │   ├── Earnings/               # Financial tracking
-│   │   ├── Vehicles/               # Fleet management
-│   │   ├── Reviews/                # Review management
-│   │   ├── Content/                # Content management
-│   │   │   ├── Content.jsx         # Content hub
-│   │   │   ├── PrivateTransfers.jsx
-│   │   │   ├── PopularDayTrips.jsx
-│   │   │   ├── PopularMultiDayTours.jsx
-│   │   │   ├── DayTrips.jsx
-│   │   │   └── PopularTransferRoutes.jsx
-│   │   ├── FAQ/                    # FAQ management
-│   │   ├── Reports/                # Reporting system
-│   │   ├── Settings/               # Settings & config
-│   │   └── profile/                # Profile management
-│   ├── shared/
-│   │   ├── Sidebar/                # Navigation sidebar
-│   │   └── MainHeader/             # Header component
-│   ├── routes/
-│   │   └── Routes.jsx              # Route configuration
-│   └── App.jsx                     # Root component
-├── public/                         # Static assets
-└── package.json                    # Dependencies
+│   ├── layout/                   # Main application structural layout container
+│   ├── pages/                    # Core modular route pages
+│   │   ├── auth/                 # Secure Sign-in, Reset Password flows
+│   │   ├── dashboard/            # Platform KPIs and Analytics Charts
+│   │   ├── userDetails/          # Primary user management & detailed views
+│   │   ├── Subscribers/          # Dedicated premium subscriber tracking
+│   │   ├── Workouts/             # Video workout library ecosystem
+│   │   ├── Challenges/           # Gamified fitness challenges
+│   │   ├── Subscriptions/        # Pricing & Tier definitions
+│   │   ├── Masterclasses/        # Premium educational content
+│   │   ├── Community/            # Social interaction and reporting
+│   │   ├── FAQ/                  # Support questions and answers
+│   │   ├── Notifications/        # System alerting mechanism
+│   │   ├── Settings/             # Hub for textual platform pages
+│   │   ├── About Us/             # Rich Text integration - About Us
+│   │   ├── Privacy Policy/       # Rich Text integration - Privacy
+│   │   ├── Terms Condition/      # Rich Text integration - Terms
+│   │   └── profile/              # Secure Admin profiles management
+│   ├── shared/                   # Reusable components (MainHeader, Sidebar)
+│   ├── utils/                    # Global helper scripts and demoData.js
+│   ├── routes/                   # Complex routing definitions
+│   └── App.jsx                   # Application entry sequence
+├── public/                       # Image assets and static files
+└── package.json                  # Dependencies and core project scripts
 ```
 
-## 🎨 Design Features
+## Design Philosophy
 
-### Modern UI/UX
-- **Gradient Headers**: Beautiful blue-to-indigo gradients
-- **Glassmorphism**: Frosted glass effects on cards
-- **Smooth Animations**: Transition effects throughout
-- **Responsive Design**: Mobile-first approach
-- **Color-Coded Status**: Visual status indicators
+The Victory Fitness Admin Panel prioritizes a premium, high-impact aesthetic. It seamlessly blends modern glassmorphism features, vibrant blue/indigo gradients, and accessible high-contrast typography. Detailed interactive feedback, integrated via robust hover states and transition animations, ensures administrative tasks feel engaging and efficient. The layout natively scales, catering equally to desktop power configurations and mobile on-the-go management.
 
-### Component Patterns
-- **Ant Design Tables**: Customized with blue headers
-- **Modal System**: Consistent modal designs for CRUD operations
-- **Image Upload**: File upload with live preview
-- **Dropdown Filters**: Location-based filtering
-- **Action Buttons**: View (blue), Edit (green), Delete (red)
+## License
 
-### Irish Cities Supported
-Dublin, Galway, Cork, Belfast, Limerick, Killarney, Waterford, Derry, Sligo, Kilkenny, Wexford, Tralee, Ennis, Drogheda, Dundalk, Bray, Navan, Athlone
-
-## 🔐 Authentication
-
-- Sign In page with form validation
-- Forgot Password flow
-- Verification Code system
-- Reset Password functionality
-
-## 📱 Responsive Design
-
-The dashboard is fully responsive and optimized for:
-- Desktop (1920px+)
-- Laptop (1024px - 1919px)
-- Tablet (768px - 1023px)
-- Mobile (320px - 767px)
-
-## 📝 License
-
-This project is private and proprietary.
-
-
-**Built with ❤️ for Ireland Go** 🚗🇮🇪
+This project is private and proprietary to Victory Fitness.
