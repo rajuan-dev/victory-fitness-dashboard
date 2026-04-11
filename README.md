@@ -2,11 +2,6 @@
 
 A modern, high-fidelity admin dashboard designed to manage the Victory Fitness ecosystem. This platform empowers administrators to seamlessly handle user management, video workout libraries, premium subscription tiers, fitness challenges, and comprehensive platform settings.
 
-![React](https://img.shields.io/badge/React-18.3.1-blue?logo=react)
-![Vite](https://img.shields.io/badge/Vite-6.0.5-646CFF?logo=vite)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.0.3-38B2AC?logo=tailwind-css)
-![Ant Design](https://img.shields.io/badge/Ant%20Design-5.23.4-0170FE?logo=ant-design)
-
 ## Features
 
 ### Dashboard & Analytics
