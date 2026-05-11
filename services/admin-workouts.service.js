@@ -1,0 +1,79 @@
+import { adminApiRequest } from "./auth.service";
+
+const createFriendlyWorkoutError = (error, fallbackMessage) => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallbackMessage;
+};
+
+const buildQueryString = (params) => {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    const normalizedValue = typeof value === "string" ? value.trim() : value;
+    if (normalizedValue === "") {
+      return;
+    }
+
+    searchParams.set(key, String(normalizedValue));
+  });
+
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : "";
+};
+
+export const listAdminWorkouts = async ({ query = "", signal } = {}) => {
+  try {
+    return await adminApiRequest(`/admin/workouts${buildQueryString({ query })}`, { signal });
+  } catch (error) {
+    throw new Error(createFriendlyWorkoutError(error, "Failed to load workouts"));
+  }
+};
+
+export const createAdminWorkout = async (payload) => {
+  try {
+    return await adminApiRequest("/admin/workouts", {
+      method: "POST",
+      body: payload,
+    });
+  } catch (error) {
+    throw new Error(createFriendlyWorkoutError(error, "Failed to create workout"));
+  }
+};
+
+export const updateAdminWorkout = async (workoutId, payload) => {
+  try {
+    return await adminApiRequest(`/admin/workouts/${workoutId}`, {
+      method: "PATCH",
+      body: payload,
+    });
+  } catch (error) {
+    throw new Error(createFriendlyWorkoutError(error, "Failed to update workout"));
+  }
+};
+
+export const deleteAdminWorkout = async (workoutId) => {
+  try {
+    return await adminApiRequest(`/admin/workouts/${workoutId}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    throw new Error(createFriendlyWorkoutError(error, "Failed to delete workout"));
+  }
+};
+
+export const syncAdminWorkouts = async () => {
+  try {
+    return await adminApiRequest("/admin/workouts/sync", {
+      method: "POST",
+    });
+  } catch (error) {
+    throw new Error(createFriendlyWorkoutError(error, "Failed to sync workouts"));
+  }
+};

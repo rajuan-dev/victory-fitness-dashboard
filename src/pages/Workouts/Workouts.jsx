@@ -1,76 +1,197 @@
-import React, { useState } from 'react';
-import { Modal, Form, Input, Select, message, Popconfirm, Button } from 'antd';
-import { globalDemoData } from '../../utils/demoData';
-import { FiEdit, FiTrash2, FiPlus, FiRefreshCw } from 'react-icons/fi';
-import { FaPlayCircle } from 'react-icons/fa';
+import { useEffect, useState } from "react";
+import { Modal, Form, Input, Select, message, Popconfirm, Button } from "antd";
+import { FiEdit, FiTrash2, FiPlus, FiRefreshCw, FiSearch } from "react-icons/fi";
+import { FaPlayCircle } from "react-icons/fa";
+import {
+  createAdminWorkout,
+  deleteAdminWorkout,
+  listAdminWorkouts,
+  syncAdminWorkouts,
+  updateAdminWorkout,
+} from "../../../services/admin-workouts.service";
+
+const DEFAULT_THUMBNAIL =
+  "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=300&auto=format&fit=crop";
+
+function WorkoutCardSkeleton() {
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-slate-700/50 bg-slate-800/80 p-3 animate-pulse">
+      <div className="h-16 w-24 shrink-0 rounded-md bg-slate-700" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="h-4 w-3/4 rounded bg-slate-700" />
+        <div className="h-3 w-1/2 rounded bg-slate-700" />
+        <div className="flex gap-2">
+          <div className="h-5 w-16 rounded bg-slate-700" />
+          <div className="h-5 w-20 rounded bg-slate-700" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const Workouts = () => {
-  const [workouts, setWorkouts] = useState(globalDemoData.workouts || []);
+  const [workouts, setWorkouts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState(null);
+  const [previewWorkout, setPreviewWorkout] = useState(null);
+  const [error, setError] = useState("");
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let isMounted = true;
+
+    const loadWorkouts = async () => {
+      setIsLoading(true);
+      setError("");
+      try {
+        const data = await listAdminWorkouts({
+          query: searchQuery,
+          signal: controller.signal,
+        });
+        if (!isMounted) {
+          return;
+        }
+        setWorkouts(data.workouts || []);
+      } catch (requestError) {
+        if (!isMounted) {
+          return;
+        }
+        setError(requestError instanceof Error ? requestError.message : "Failed to load workouts");
+        setWorkouts([]);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadWorkouts();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [searchQuery]);
+
+  const reloadWorkouts = async () => {
+    const data = await listAdminWorkouts({ query: searchQuery });
+    setWorkouts(data.workouts || []);
+    return data;
+  };
 
   const handleAdd = () => {
     setEditingWorkout(null);
     form.resetFields();
+    form.setFieldsValue({
+      visibility: "Published",
+      thumbnail: DEFAULT_THUMBNAIL,
+    });
     setIsModalVisible(true);
   };
 
   const handleEdit = (workout) => {
     setEditingWorkout(workout);
-    form.setFieldsValue(workout);
+    form.setFieldsValue({
+      ...workout,
+      thumbnail: workout.thumbnail || DEFAULT_THUMBNAIL,
+    });
     setIsModalVisible(true);
   };
 
-  const handleDelete = (id) => {
-    setWorkouts(prev => prev.filter(w => w.id !== id));
-    message.success('Workout deleted successfully (Demo)');
+  const handlePreview = (workout) => {
+    setPreviewWorkout(workout);
+    setIsPreviewVisible(true);
   };
 
-  const handleSubmit = (values) => {
-    if (editingWorkout) {
-      setWorkouts(prev => prev.map(w => w.id === editingWorkout.id ? { ...w, ...values } : w));
-      message.success('Workout updated successfully (Demo)');
-    } else {
-      const newWorkout = {
-        id: Date.now().toString(),
-        ...values,
-        thumbnail: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=300&auto=format&fit=crop"
-      };
-      setWorkouts([newWorkout, ...workouts]);
-      message.success('Workout added successfully (Demo)');
+  const handleDelete = async (id) => {
+    try {
+      await deleteAdminWorkout(id);
+      await reloadWorkouts();
+      message.success("Workout deleted successfully");
+    } catch (requestError) {
+      message.error(requestError instanceof Error ? requestError.message : "Failed to delete workout");
     }
-    setIsModalVisible(false);
   };
 
-  const handleSync = () => {
-    const hide = message.loading('Syncing Vimeo Videos...', 0);
-    setTimeout(() => {
-      hide();
-      message.success('Vimeo videos synced successfully! (Demo)');
-    }, 1500);
+  const handleSubmit = async (values) => {
+    const payload = {
+      title: values.title,
+      vimeoId: values.vimeoId,
+      tag: values.tag,
+      visibility: values.visibility,
+      thumbnail: values.thumbnail || DEFAULT_THUMBNAIL,
+    };
+
+    try {
+      setIsSaving(true);
+      if (editingWorkout) {
+        await updateAdminWorkout(editingWorkout.id, payload);
+        message.success("Workout updated successfully");
+      } else {
+        await createAdminWorkout(payload);
+        message.success("Workout added successfully");
+      }
+      setIsModalVisible(false);
+      setEditingWorkout(null);
+      form.resetFields();
+      await reloadWorkouts();
+    } catch (requestError) {
+      message.error(requestError instanceof Error ? requestError.message : "Failed to save workout");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      setIsSyncing(true);
+      const result = await syncAdminWorkouts();
+      await reloadWorkouts();
+      message.success(result.message || "Workout library synced");
+    } catch (requestError) {
+      message.error(requestError instanceof Error ? requestError.message : "Failed to sync workouts");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
-    <div className="flex flex-col space-y-6 pt-2 h-full text-slate-100">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="flex h-full flex-col space-y-6 pt-2 text-slate-100">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
+          <h1 className="text-2xl font-bold text-slate-800 md:text-3xl">
             Workout Library ({workouts.length})
           </h1>
+          <p className="mt-1 text-sm text-slate-500">Manage the admin workout library from the backend.</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
+          <div className="relative min-w-[16rem]">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search workouts..."
+              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-slate-800 shadow-sm outline-none transition-all focus:border-blue-500"
+            />
+          </div>
           <button
             onClick={handleSync}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-teal-400 font-semibold py-2.5 px-4 rounded-lg border border-teal-500/30 transition-all"
+            disabled={isSyncing}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-teal-500/30 bg-slate-800 px-4 py-2.5 font-semibold text-teal-400 transition-all hover:bg-slate-700 disabled:opacity-50 md:flex-none"
           >
-            <FiRefreshCw />
-            Sync Vimeo
+            <FiRefreshCw className={isSyncing ? "animate-spin" : ""} />
+            {isSyncing ? "Syncing..." : "Sync Vimeo"}
           </button>
           <button
             onClick={handleAdd}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-all shadow-md"
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white shadow-md transition-all hover:bg-blue-500 md:flex-none"
           >
             <FiPlus />
             Add Workout
@@ -78,50 +199,147 @@ const Workouts = () => {
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 rounded-2xl shadow-xl border border-slate-700/50">
-        {workouts.map(workout => (
-          <div key={workout.id} className="bg-[#1e293b] border border-[#334155] rounded-xl p-3 flex items-center gap-4 group hover:bg-[#253245] hover:border-slate-500 transition-all relative">
-            {/* Thumbnail */}
-            <div className="relative w-24 h-16 shrink-0 rounded-md overflow-hidden bg-slate-700">
-              <img src={workout.thumbnail} alt={workout.title} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                <FaPlayCircle className="text-white text-2xl drop-shadow-md" />
-              </div>
-            </div>
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {error}
+        </div>
+      )}
 
-            {/* Info */}
-            <div className="flex flex-col flex-1 min-w-0 pr-6">
-              <h3 className="text-sm font-semibold text-slate-100 truncate mb-1" title={workout.title}>{workout.title}</h3>
-              <p className="text-xs text-slate-400 truncate mb-2 mt-0.5">Vimeo ID: {workout.vimeoId}</p>
-              <div className="flex items-center gap-2 mt-auto">
-                <span className="text-[10px] uppercase tracking-wider text-teal-300 font-semibold bg-teal-400/10 px-2 py-0.5 rounded">{workout.tag}</span>
-                <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${workout.visibility === 'Published' ? 'text-blue-300 bg-blue-400/10' : 'text-slate-300 bg-slate-400/10'}`}>
-                  {workout.visibility}
-                </span>
+      <div className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-700/50 p-4 shadow-xl md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {isLoading ? (
+          [...Array(8)].map((_, index) => <WorkoutCardSkeleton key={index} />)
+        ) : workouts.length === 0 ? (
+          <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
+            <h2 className="text-lg font-semibold text-slate-700">No workouts found</h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Add a workout or adjust your search to see results here.
+            </p>
+          </div>
+        ) : (
+          workouts.map((workout) => (
+            <div
+              key={workout.id}
+              className="group relative flex cursor-pointer items-center gap-4 rounded-xl border border-[#334155] bg-[#1e293b] p-3 transition-all hover:border-slate-500 hover:bg-[#253245]"
+              onClick={() => handlePreview(workout)}
+            >
+              <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-slate-700">
+                <img src={workout.thumbnail || DEFAULT_THUMBNAIL} alt={workout.title} className="h-full w-full object-cover" />
+                <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                  <FaPlayCircle className="text-2xl text-white drop-shadow-md" />
+                </div>
               </div>
-            </div>
 
-            {/* Actions */}
-            <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-100 sm:opacity-50 group-hover:opacity-100 transition-opacity">
-              <button title="Edit" onClick={() => handleEdit(workout)} className="text-slate-400 hover:text-blue-400 transition-colors">
-                <FiEdit size={15} />
-              </button>
-              <Popconfirm
-                title="Delete the workout"
-                description="Are you sure to delete this workout?"
-                onConfirm={() => handleDelete(workout.id)}
-                okText="Yes"
-                cancelText="No"
-              >
-                <button title="Delete" className="text-slate-400 hover:text-red-400 transition-colors">
-                  <FiTrash2 size={15} />
+              <div className="min-w-0 flex-1 pr-6">
+                <h3 className="mb-1 truncate text-sm font-semibold text-slate-100" title={workout.title}>
+                  {workout.title}
+                </h3>
+                <p className="mb-2 mt-0.5 truncate text-xs text-slate-400">Vimeo ID: {workout.vimeoId}</p>
+                <div className="mt-auto flex items-center gap-2">
+                  <span className="rounded bg-teal-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300">
+                    {workout.tag}
+                  </span>
+                  <span
+                    className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                      workout.visibility === "Published"
+                        ? "bg-blue-400/10 text-blue-300"
+                        : "bg-slate-400/10 text-slate-300"
+                    }`}
+                  >
+                    {workout.visibility}
+                  </span>
+                </div>
+              </div>
+
+              <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-100 transition-opacity sm:opacity-50 group-hover:opacity-100">
+                <button
+                  title="Edit"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleEdit(workout);
+                  }}
+                  className="text-slate-400 transition-colors hover:text-blue-400"
+                >
+                  <FiEdit size={15} />
                 </button>
-              </Popconfirm>
+                <Popconfirm
+                  title="Delete the workout"
+                  description="Are you sure to delete this workout?"
+                  onConfirm={() => handleDelete(workout.id)}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <button
+                    title="Delete"
+                    onClick={(event) => event.stopPropagation()}
+                    className="text-slate-400 transition-colors hover:text-red-400"
+                  >
+                    <FiTrash2 size={15} />
+                  </button>
+                </Popconfirm>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <Modal
+        title={null}
+        open={isPreviewVisible}
+        onCancel={() => {
+          setIsPreviewVisible(false);
+          setPreviewWorkout(null);
+        }}
+        footer={null}
+        width={980}
+        destroyOnClose
+        className="workout-preview-modal"
+      >
+        {previewWorkout && (
+          <div className="space-y-5">
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 shadow-2xl">
+              <div className="aspect-video w-full">
+                <iframe
+                  src={`https://player.vimeo.com/video/${encodeURIComponent(previewWorkout.vimeoId)}?autoplay=1&title=0&byline=0&portrait=0`}
+                  title={previewWorkout.title}
+                  className="h-full w-full"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-teal-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-teal-600">
+                    {previewWorkout.tag}
+                  </span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
+                      previewWorkout.visibility === "Published"
+                        ? "bg-blue-500/10 text-blue-600"
+                        : "bg-slate-500/10 text-slate-500"
+                    }`}
+                  >
+                    {previewWorkout.visibility}
+                  </span>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900">{previewWorkout.title}</h2>
+                <p className="mt-2 text-sm text-slate-500">Vimeo ID: {previewWorkout.vimeoId}</p>
+              </div>
+
+              <a
+                href={`https://vimeo.com/${encodeURIComponent(previewWorkout.vimeoId)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+              >
+                Open in Vimeo
+              </a>
             </div>
           </div>
-        ))}
-      </div>
+        )}
+      </Modal>
 
       <Modal
         title={<span className="text-slate-800">{editingWorkout ? "Edit Workout" : "Add New Workout"}</span>}
@@ -131,16 +349,11 @@ const Workouts = () => {
         destroyOnClose
         className="workout-modal"
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          className="mt-4"
-        >
+        <Form form={form} layout="vertical" onFinish={handleSubmit} className="mt-4">
           <Form.Item
             name="title"
             label={<span className="font-medium text-slate-700">Workout Title</span>}
-            rules={[{ required: true, message: 'Please input the title!' }]}
+            rules={[{ required: true, message: "Please input the title!" }]}
           >
             <Input placeholder="e.g. Full Body Strength" className="py-2" />
           </Form.Item>
@@ -148,7 +361,7 @@ const Workouts = () => {
           <Form.Item
             name="vimeoId"
             label={<span className="font-medium text-slate-700">Vimeo Video ID</span>}
-            rules={[{ required: true, message: 'Please input the Vimeo ID!' }]}
+            rules={[{ required: true, message: "Please input the Vimeo ID!" }]}
           >
             <Input placeholder="e.g. 740239410" className="py-2" />
           </Form.Item>
@@ -156,7 +369,7 @@ const Workouts = () => {
           <Form.Item
             name="tag"
             label={<span className="font-medium text-slate-700">Category Tag</span>}
-            rules={[{ required: true, message: 'Please select a tag!' }]}
+            rules={[{ required: true, message: "Please select a tag!" }]}
           >
             <Select placeholder="Select a category" size="large">
               <Select.Option value="Strength">Strength</Select.Option>
@@ -171,7 +384,7 @@ const Workouts = () => {
           <Form.Item
             name="visibility"
             label={<span className="font-medium text-slate-700">Visibility</span>}
-            rules={[{ required: true, message: 'Please select visibility!' }]}
+            rules={[{ required: true, message: "Please select visibility!" }]}
           >
             <Select placeholder="Select visibility" size="large">
               <Select.Option value="Published">Published</Select.Option>
@@ -179,12 +392,25 @@ const Workouts = () => {
             </Select>
           </Form.Item>
 
-          <div className="flex justify-end gap-3 mt-8">
+          <Form.Item
+            name="thumbnail"
+            label={<span className="font-medium text-slate-700">Thumbnail URL</span>}
+          >
+            <Input placeholder="https://..." className="py-2" />
+          </Form.Item>
+
+          <div className="mt-8 flex justify-end gap-3">
             <Button size="large" onClick={() => setIsModalVisible(false)}>
               Cancel
             </Button>
-            <Button size="large" type="primary" htmlType="submit" className="bg-blue-600 hover:bg-blue-500">
-              {editingWorkout ? 'Update Workout' : 'Add Workout'}
+            <Button
+              size="large"
+              type="primary"
+              htmlType="submit"
+              loading={isSaving}
+              className="bg-blue-600 hover:bg-blue-500"
+            >
+              {editingWorkout ? "Update Workout" : "Add Workout"}
             </Button>
           </div>
         </Form>
