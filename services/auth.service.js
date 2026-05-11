@@ -155,6 +155,7 @@ export const adminApiRequest = async (path, options = {}) => {
         ...(options.headers || {}),
       },
       credentials: "include",
+      signal: options.signal,
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
   };
@@ -171,7 +172,10 @@ export const adminApiRequest = async (path, options = {}) => {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.detail || "Request failed");
+    const error = new Error(data?.detail || "Request failed");
+    error.status = response.status;
+    error.path = path;
+    throw error;
   }
 
   return data;
