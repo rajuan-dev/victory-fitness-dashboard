@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import { Link, useNavigate } from "react-router-dom";
+import { clearUserInfo, hasAdminAccess, loginAdmin } from "../../../services/auth.service";
 
 function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,6 +15,11 @@ function SignInPage() {
   const navigate = useNavigate();
   
   useEffect(() => {
+    if (hasAdminAccess()) {
+      navigate("/", { replace: true });
+      return;
+    }
+
     const savedEmail = localStorage.getItem('rememberedEmail');
     const savedPassword = localStorage.getItem('rememberedPassword');
     const rememberMe = localStorage.getItem('rememberMe') === 'true';
@@ -59,16 +65,15 @@ function SignInPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // Mock login delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Mock successful login
-      localStorage.setItem("token", "demo-token");
-      console.log("Login successful (Demo)");
-      navigate("/");
+      clearUserInfo();
+      await loginAdmin({
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+      });
+      navigate("/", { replace: true });
     } catch (err) {
       console.error("Login failed:", err);
-      setError("Login failed. Please try again.");
+      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }

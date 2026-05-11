@@ -3,10 +3,12 @@
 import { useNavigate } from "react-router-dom";
 import { IoMenu, IoNotificationsOutline } from "react-icons/io5";
 import { globalDemoData } from "../../utils/demoData";
+import { getUserData } from "../../../services/auth.service";
 
 
 const MainHeader = ({ toggleSidebar }) => {
   const navigate = useNavigate();
+  const currentUser = getUserData();
   
   const profileData = globalDemoData.profileData;
   const isLoading = false;
@@ -65,10 +67,10 @@ const MainHeader = ({ toggleSidebar }) => {
                 <h3 className="hidden md:block text-blue-600 text-sm lg:text-base font-semibold leading-tight">
                   {isLoading
                     ? "Loading..."
-                    : profileData?.fullName || "Admin"}
+                    : currentUser?.name || profileData?.fullName || "Admin"}
                 </h3>
                 <p className="text-blue-600 text-xs sm:text-sm lg:text-base font-semibold">
-                  {profileData?.role || "Admin"}
+                  {currentUser?.role || profileData?.role || "Admin"}
                 </p>
               </div>
             </div>
