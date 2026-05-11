@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Sidebar from "../shared/Sidebar/Sidebar";
 import MainHeader from "../shared/MainHeader/MainHeader";
 import { Outlet, useLocation } from "react-router-dom";
+import RequireAdminAuth from "../components/RequireAdminAuth";
 
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -58,7 +59,9 @@ const MainLayout = () => {
         <MainHeader toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
         <main className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6">
           <div className="bg-white rounded-lg shadow-sm min-h-[calc(100vh-6rem)] sm:min-h-[calc(100vh-2rem)] p-3 sm:p-4 lg:p-6">
-            <Outlet />
+            <RequireAdminAuth>
+              <Outlet />
+            </RequireAdminAuth>
           </div>
         </main>
       </div>

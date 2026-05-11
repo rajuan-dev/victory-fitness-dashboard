@@ -143,6 +143,40 @@ export const ensureAdminSession = async () => {
   return sessionBootstrapPromise;
 };
 
+export const adminApiRequest = async (path, options = {}) => {
+  const makeRequest = async () => {
+    const token = getUserToken();
+    return fetch(`${API_URL}${path}`, {
+      method: options.method || "GET",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+      credentials: "include",
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  };
+
+  let response = await makeRequest();
+  if (response.status === 401) {
+    const refreshed = await ensureAdminSession();
+    if (!refreshed) {
+      clearUserInfo();
+      throw new Error("Session expired");
+    }
+    response = await makeRequest();
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.detail || "Request failed");
+  }
+
+  return data;
+};
+
 export const loginAdmin = async ({ email, password }) => {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
