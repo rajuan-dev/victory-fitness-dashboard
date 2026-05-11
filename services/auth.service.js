@@ -2,6 +2,7 @@ import { decodeAuthToken } from "../utils/decode-access-token";
 import { getFromLocalStorage, setToLocalStorage } from "../utils/local-storage";
 
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
+let sessionBootstrapPromise = null;
 
 // Store user info in localStorage
 export const storeUserInfo = (userData) => {
@@ -27,6 +28,11 @@ export const storeSessionToken = ({ sessionToken }) => {
   if (sessionToken) {
     setToLocalStorage("sessionToken", sessionToken);
   }
+};
+
+export const getSessionToken = () => {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("sessionToken") || "";
 };
 
 // Retrieve user token from localStorage
@@ -95,6 +101,48 @@ export const hasAdminAccess = () => {
   return expiry * 1000 > Date.now();
 };
 
+const storeAuthSession = (data) => {
+  storeUserToken({ accessToken: data.access_token });
+  storeSessionToken({ sessionToken: data.session_token });
+  storeUserInfo(data.user);
+};
+
+export const refreshAdminSession = async () => {
+  const sessionToken = getSessionToken();
+  const response = await fetch(`${API_URL}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: sessionToken ? JSON.stringify({ session_token: sessionToken }) : undefined,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.user?.is_admin) {
+    clearUserInfo();
+    return false;
+  }
+
+  storeAuthSession(data);
+  return true;
+};
+
+export const ensureAdminSession = async () => {
+  if (hasAdminAccess()) {
+    return true;
+  }
+
+  if (!sessionBootstrapPromise) {
+    sessionBootstrapPromise = refreshAdminSession().finally(() => {
+      sessionBootstrapPromise = null;
+    });
+  }
+
+  return sessionBootstrapPromise;
+};
+
 export const loginAdmin = async ({ email, password }) => {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
@@ -115,9 +163,7 @@ export const loginAdmin = async ({ email, password }) => {
     throw new Error("This account does not have admin dashboard access");
   }
 
-  storeUserToken({ accessToken: data.access_token });
-  storeSessionToken({ sessionToken: data.session_token });
-  storeUserInfo(data.user);
+  storeAuthSession(data);
   return data.user;
 };
 

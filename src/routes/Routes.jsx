@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 import SignInPage from "../pages/auth/SignInPage";
 import ForgetPassword from "../pages/auth/ForgetPassword";
 import VerificationCode from "../pages/auth/VerificationCode";
@@ -22,12 +22,11 @@ import Masterclasses from "../pages/Masterclasses/Masterclasses";
 import Community from "../pages/Community/Community";
 import AllSubscribers from "../pages/Subscribers/AllSubscribers";
 import RequireAdminAuth from "../components/RequireAdminAuth";
-import { hasAdminAccess } from "../../services/auth.service";
 
 const router = createBrowserRouter([
   {
     path: "/sign-in",
-    element: hasAdminAccess() ? <Navigate to="/" replace /> : <SignInPage />,
+    element: <SignInPage />,
   },
   {
     path: "/forget-password",
