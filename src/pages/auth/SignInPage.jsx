@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import { Link, useNavigate } from "react-router-dom";
-import { clearUserInfo, hasAdminAccess, loginAdmin } from "../../../services/auth.service";
+import { clearUserInfo, ensureAdminSession, loginAdmin } from "../../../services/auth.service";
 
 function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -11,14 +11,32 @@ function SignInPage() {
     password: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   
   useEffect(() => {
-    if (hasAdminAccess()) {
-      navigate("/", { replace: true });
-      return;
-    }
+    let isMounted = true;
+
+    ensureAdminSession()
+      .then((allowed) => {
+        if (!isMounted) {
+          return;
+        }
+
+        if (allowed) {
+          navigate("/", { replace: true });
+          return;
+        }
+
+        setIsCheckingSession(false);
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+        setIsCheckingSession(false);
+      });
 
     const savedEmail = localStorage.getItem('rememberedEmail');
     const savedPassword = localStorage.getItem('rememberedPassword');
@@ -31,7 +49,11 @@ function SignInPage() {
       });
       setIsChecked(true);
     }
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
 
   const handleCheckboxChange = (event) => {
     const checked = event.target.checked;
@@ -84,6 +106,11 @@ function SignInPage() {
       <div className="container mx-auto">
         <div className="flex  justify-center items-center">
           <div className="w-full lg:w-1/2 bg-white p-5 md:px-18 md:py-28 shadow-[0px_10px_30px_rgba(0,0,0,0.1)] rounded-2xl">
+            {isCheckingSession ? (
+              <div className="py-12 text-center text-lg font-semibold text-blue-600">
+                Checking admin session...
+              </div>
+            ) : (
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="w-full">
                 <label className="text-xl text-blue-600 mb-2 font-bold">
@@ -206,6 +233,7 @@ function SignInPage() {
                 </div>
               )}
             </form>
+            )}
           </div>
         </div>
       </div>
