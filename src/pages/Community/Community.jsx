@@ -328,9 +328,17 @@ const Community = () => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex flex-col gap-2 min-w-0">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <div className="w-8 h-8 rounded-full bg-[#0cd7d3] flex items-center justify-center font-bold text-[#0f172a] text-sm shrink-0">
-                      {(post.author_name || 'A').slice(0, 1).toUpperCase()}
-                    </div>
+                    {post.author_profile_image ? (
+                      <img
+                        src={post.author_profile_image}
+                        alt={post.author_name || "Author"}
+                        className="w-8 h-8 rounded-full object-cover border border-[#334155] shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-[#0cd7d3] flex items-center justify-center font-bold text-[#0f172a] text-sm shrink-0">
+                        {(post.author_name || 'A').slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
                     <span className="font-semibold text-white text-sm">{post.author_name}</span>
                     <span className="text-[11px] text-slate-400">{formatPostDate(post.created_at)}</span>
                     <span className="bg-[#2a374a] text-[#9baec2] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
@@ -346,6 +354,40 @@ const Community = () => {
                   ) : null}
 
                   <div className="pl-11 pt-2">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                      <span>{post.like_count || 0} reactions</span>
+                      <span>{post.comment_count || 0} comments</span>
+                    </div>
+
+                    {(post.reactions?.length ?? 0) > 0 ? (
+                      <div className="mt-3 rounded-xl border border-[#334155] bg-[#0f172a] px-3 py-3">
+                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                          Reacted By
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {post.reactions.map((reaction) => (
+                            <div
+                              key={`${post.id}-${reaction.user_id}-${reaction.created_at}`}
+                              className="flex items-center gap-2 rounded-full border border-[#334155] bg-[#111827] px-2.5 py-1.5"
+                            >
+                              {reaction.user_profile_image ? (
+                                <img
+                                  src={reaction.user_profile_image}
+                                  alt={reaction.user_name}
+                                  className="w-5 h-5 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-[#334155] flex items-center justify-center text-[10px] font-bold text-white">
+                                  {(reaction.user_name || "U").slice(0, 1).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="text-[11px] text-slate-200">{reaction.user_name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <button
                       type="button"
                       onClick={() =>

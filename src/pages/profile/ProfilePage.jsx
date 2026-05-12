@@ -4,7 +4,7 @@ import { FaCamera } from "react-icons/fa";
 import EditProfile from "./EditProfile";
 import ChangePass from "./ChangePass";
 import { IoChevronBack } from "react-icons/io5";
-import { adminApiRequest } from "../../../services/auth.service";
+import { adminApiRequest, storeUserInfo, getUserData } from "../../../services/auth.service";
 
 function ProfilePage() {
   const [activeTab, setActiveTab] = useState("editProfile");
@@ -13,6 +13,21 @@ function ProfilePage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const syncStoredAdminProfile = (profile) => {
+    const nextUser = {
+      ...getUserData(),
+      fullName: profile.fullName,
+      name: profile.fullName,
+      role: profile.role,
+      profileImage: profile.profileImage,
+      country: profile.country,
+      contactNumber: profile.contactNumber,
+      email: profile.email,
+    };
+    storeUserInfo(nextUser);
+    window.dispatchEvent(new Event("admin-profile-updated"));
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -24,6 +39,7 @@ function ProfilePage() {
         const response = await adminApiRequest("/admin/me");
         if (isMounted) {
           setProfileData(response);
+          syncStoredAdminProfile(response);
         }
       } catch (err) {
         if (isMounted) {
@@ -71,14 +87,17 @@ function ProfilePage() {
           },
         });
 
-        setProfileData((current) =>
-          current
-            ? {
-                ...current,
-                profileImage: uploadResponse.image_url,
-              }
-            : current
-        );
+        setProfileData((current) => {
+          if (!current) {
+            return current;
+          }
+          const nextProfile = {
+            ...current,
+            profileImage: uploadResponse.image_url,
+          };
+          syncStoredAdminProfile(nextProfile);
+          return nextProfile;
+        });
       } catch (err) {
         setError(err.message || "Failed to upload profile image");
       } finally {
@@ -165,7 +184,10 @@ function ProfilePage() {
               {activeTab === "editProfile" && (
                 <EditProfile
                   profileData={profileData}
-                  onProfileUpdated={(updatedProfile) => setProfileData(updatedProfile)}
+                  onProfileUpdated={(updatedProfile) => {
+                    setProfileData(updatedProfile);
+                    syncStoredAdminProfile(updatedProfile);
+                  }}
                 />
               )}
               {activeTab === "changePassword" && <ChangePass />}

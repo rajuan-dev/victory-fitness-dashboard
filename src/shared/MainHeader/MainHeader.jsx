@@ -1,19 +1,76 @@
 /* eslint-disable react/prop-types */
 
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IoMenu, IoNotificationsOutline } from "react-icons/io5";
 import { globalDemoData } from "../../utils/demoData";
-import { getUserData } from "../../../services/auth.service";
+import { adminApiRequest, getUserData, storeUserInfo } from "../../../services/auth.service";
 
 
 const MainHeader = ({ toggleSidebar }) => {
   const navigate = useNavigate();
-  const currentUser = getUserData();
-  
-  const profileData = globalDemoData.profileData;
-  const isLoading = false;
+  const [currentUser, setCurrentUser] = useState(getUserData());
+  const [isLoading, setIsLoading] = useState(true);
   const notificationData = globalDemoData.notifications;
+  const displayName =
+    currentUser?.fullName ||
+    currentUser?.name ||
+    "Admin";
+  const displayRole =
+    currentUser?.role ||
+    "Admin";
+  const displayImage =
+    currentUser?.profileImage ||
+    currentUser?.profile_image ||
+    "/userimg.png";
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAdminProfile = async () => {
+      setIsLoading(true);
+      try {
+        const response = await adminApiRequest("/admin/me");
+        if (!isMounted) {
+          return;
+        }
+
+        const nextUser = {
+          ...getUserData(),
+          fullName: response.fullName,
+          name: response.fullName,
+          role: response.role,
+          profileImage: response.profileImage,
+          country: response.country,
+          contactNumber: response.contactNumber,
+          email: response.email,
+        };
+        storeUserInfo(nextUser);
+        setCurrentUser(nextUser);
+      } catch {
+        if (isMounted) {
+          setCurrentUser(getUserData());
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const syncHeaderProfile = () => {
+      setCurrentUser(getUserData());
+      loadAdminProfile();
+    };
+
+    loadAdminProfile();
+    window.addEventListener("admin-profile-updated", syncHeaderProfile);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("admin-profile-updated", syncHeaderProfile);
+    };
+  }, []);
 
   const notificationCount = notificationData?.filter((item) => !item?.read).length || 0;
 
@@ -56,7 +113,7 @@ const MainHeader = ({ toggleSidebar }) => {
               className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
             >
               <img
-                src={profileData?.profileImage || "/userimg.png"}
+                src={displayImage}
                 className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 object-cover rounded-full border-2 border-blue-100"
                 alt="User Avatar"
                 onError={(e) => {
@@ -67,10 +124,10 @@ const MainHeader = ({ toggleSidebar }) => {
                 <h3 className="hidden md:block text-blue-600 text-sm lg:text-base font-semibold leading-tight">
                   {isLoading
                     ? "Loading..."
-                    : currentUser?.name || profileData?.fullName || "Admin"}
+                    : displayName}
                 </h3>
                 <p className="text-blue-600 text-xs sm:text-sm lg:text-base font-semibold">
-                  {currentUser?.role || profileData?.role || "Admin"}
+                  {displayRole}
                 </p>
               </div>
             </div>
