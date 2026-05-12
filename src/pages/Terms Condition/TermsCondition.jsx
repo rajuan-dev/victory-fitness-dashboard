@@ -4,27 +4,62 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { IoChevronBack } from "react-icons/io5";
 import { Spin, message } from "antd";
-import { globalDemoData } from "../../utils/demoData";
+import { adminApiRequest } from "../../../services/auth.service";
 
 
 function TermsCondition() {
   const navigate = useNavigate();
-  const isLoading = false;
-  const isUpdating = false;
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [title, setTitle] = useState("Terms & Conditions");
   const [content, setContent] = useState("");
 
   useEffect(() => {
-    setContent(globalDemoData.termsCondition);
+    let cancelled = false;
+
+    const loadTermsCondition = async () => {
+      setIsLoading(true);
+      try {
+        const response = await adminApiRequest("/admin/content/terms-condition");
+        if (!cancelled) {
+          setTitle(response.title || "Terms & Conditions");
+          setContent(response.html_content || "");
+        }
+      } catch (err) {
+        console.error("Failed to load terms:", err);
+        if (!cancelled) {
+          message.error("Failed to load Terms & Conditions");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadTermsCondition();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSave = async () => {
+    setIsUpdating(true);
     try {
-      globalDemoData.termsCondition = content;
-      message.success("Terms & Conditions updated successfully (Demo)");
+      await adminApiRequest("/admin/content/terms-condition", {
+        method: "PUT",
+        body: {
+          title: title.trim() || "Terms & Conditions",
+          html_content: content,
+        },
+      });
+      message.success("Terms & Conditions updated successfully");
     } catch (err) {
       console.error("Failed to update terms:", err);
       message.error("Failed to update Terms & Conditions");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -50,6 +85,13 @@ function TermsCondition() {
       </div>
 
       <div className=" bg-white rounded shadow p-5 h-full">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full mb-4 rounded border border-slate-300 px-4 py-3 text-lg font-semibold outline-none"
+          placeholder="Terms & Conditions"
+        />
         <ReactQuill
           style={{ padding: "10px" }}
           theme="snow"

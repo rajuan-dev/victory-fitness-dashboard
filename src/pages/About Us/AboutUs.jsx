@@ -4,27 +4,62 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { IoChevronBack } from "react-icons/io5";
 import { Spin, message } from "antd";
-import { globalDemoData } from "../../utils/demoData";
+import { adminApiRequest } from "../../../services/auth.service";
 
 
 export default function AboutUs() {
   const navigate = useNavigate();
-  const isLoading = false;
-  const isUpdating = false;
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [title, setTitle] = useState("About Us");
   const [content, setContent] = useState("");
 
   useEffect(() => {
-    setContent(globalDemoData.aboutUs);
+    let cancelled = false;
+
+    const loadAboutUs = async () => {
+      setIsLoading(true);
+      try {
+        const response = await adminApiRequest("/admin/content/about-us");
+        if (!cancelled) {
+          setTitle(response.title || "About Us");
+          setContent(response.html_content || "");
+        }
+      } catch (err) {
+        console.error("Failed to load about us:", err);
+        if (!cancelled) {
+          message.error("Failed to load About Us");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadAboutUs();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSave = async () => {
+    setIsUpdating(true);
     try {
-      globalDemoData.aboutUs = content;
-      message.success("About Us updated successfully (Demo)");
+      await adminApiRequest("/admin/content/about-us", {
+        method: "PUT",
+        body: {
+          title: title.trim() || "About Us",
+          html_content: content,
+        },
+      });
+      message.success("About Us updated successfully");
     } catch (err) {
       console.error("Failed to update about us:", err);
       message.error("Failed to update about us");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -50,6 +85,13 @@ export default function AboutUs() {
       </div>
 
       <div className=" bg-white rounded shadow p-5 h-full">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full mb-4 rounded border border-slate-300 px-4 py-3 text-lg font-semibold outline-none"
+          placeholder="About Us"
+        />
         <ReactQuill
           style={{ padding: "10px" }}
           theme="snow"
