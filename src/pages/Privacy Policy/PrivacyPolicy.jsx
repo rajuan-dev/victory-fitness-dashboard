@@ -4,27 +4,62 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { IoChevronBack } from "react-icons/io5";
 import { Spin, message } from "antd";
-import { globalDemoData } from "../../utils/demoData";
+import { adminApiRequest } from "../../../services/auth.service";
 
 
 export default function PrivacyPolicy() {
   const navigate = useNavigate();
-  const isLoading = false;
-  const isUpdating = false;
-
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [title, setTitle] = useState("Privacy Policy");
   const [content, setContent] = useState("");
 
   useEffect(() => {
-    setContent(globalDemoData.privacyPolicy);
+    let cancelled = false;
+
+    const loadPrivacyPolicy = async () => {
+      setIsLoading(true);
+      try {
+        const response = await adminApiRequest("/admin/content/privacy-policy");
+        if (!cancelled) {
+          setTitle(response.title || "Privacy Policy");
+          setContent(response.html_content || "");
+        }
+      } catch (err) {
+        console.error("Failed to load privacy policy:", err);
+        if (!cancelled) {
+          message.error("Failed to load privacy policy");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadPrivacyPolicy();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSave = async () => {
+    setIsUpdating(true);
     try {
-      globalDemoData.privacyPolicy = content;
-      message.success("Privacy policy updated successfully (Demo)");
+      await adminApiRequest("/admin/content/privacy-policy", {
+        method: "PUT",
+        body: {
+          title: title.trim() || "Privacy Policy",
+          html_content: content,
+        },
+      });
+      message.success("Privacy policy updated successfully");
     } catch (err) {
       console.error("Failed to update privacy policy:", err);
       message.error("Failed to update privacy policy");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -50,6 +85,13 @@ export default function PrivacyPolicy() {
       </div>
 
       <div className=" bg-white rounded shadow p-5 h-full">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full mb-4 rounded border border-slate-300 px-4 py-3 text-lg font-semibold outline-none"
+          placeholder="Privacy Policy"
+        />
         <ReactQuill
           style={{ padding: "10px" }}
           theme="snow"
