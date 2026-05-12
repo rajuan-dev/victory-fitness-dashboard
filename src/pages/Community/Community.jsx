@@ -39,6 +39,9 @@ const Community = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [clearImage, setClearImage] = useState(false);
+  const [expandedComments, setExpandedComments] = useState({});
+  const [commentDrafts, setCommentDrafts] = useState({});
+  const [commentSubmitting, setCommentSubmitting] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -163,6 +166,42 @@ const Community = () => {
       setError(deleteError.message || 'Failed to delete community post');
     } finally {
       setDeletingPostId('');
+    }
+  };
+
+  const handleSubmitComment = async (postId) => {
+    const content = (commentDrafts[postId] || '').trim();
+    if (!content || commentSubmitting[postId]) {
+      return;
+    }
+
+    setCommentSubmitting((current) => ({ ...current, [postId]: true }));
+    setError('');
+    setSuccess('');
+    try {
+      const response = await adminApiRequest(`/community/posts/${postId}/comments`, {
+        method: 'POST',
+        body: { content },
+      });
+
+      setCommentDrafts((current) => ({ ...current, [postId]: '' }));
+      setExpandedComments((current) => ({ ...current, [postId]: true }));
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                comment_count: (post.comment_count || 0) + 1,
+                comments: [...(post.comments || []), response].slice(-6),
+              }
+            : post
+        )
+      );
+      setSuccess('Comment added');
+    } catch (commentError) {
+      setError(commentError.message || 'Failed to add comment');
+    } finally {
+      setCommentSubmitting((current) => ({ ...current, [postId]: false }));
     }
   };
 
@@ -305,6 +344,71 @@ const Community = () => {
                       <img src={post.image_url} alt="Community post" className="mt-1 max-h-64 rounded-lg border border-[#334155] object-cover" />
                     </div>
                   ) : null}
+
+                  <div className="pl-11 pt-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedComments((current) => ({
+                          ...current,
+                          [post.id]: !current[post.id],
+                        }))
+                      }
+                      className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      {expandedComments[post.id] ? 'Hide comments' : `Comments (${post.comment_count || 0})`}
+                    </button>
+
+                    {(expandedComments[post.id] || (post.comments?.length ?? 0) > 0) ? (
+                      <div className="mt-3 space-y-3">
+                        {(post.comments || []).map((comment) => (
+                          <div key={comment.id} className="flex items-start gap-3">
+                            {comment.author_profile_image ? (
+                              <img
+                                src={comment.author_profile_image}
+                                alt={comment.author_name}
+                                className="w-7 h-7 rounded-full object-cover border border-[#334155]"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-[#334155] flex items-center justify-center text-[11px] font-bold text-white">
+                                {(comment.author_name || 'A').slice(0, 1).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 rounded-xl bg-[#0f172a] border border-[#334155] px-3 py-2">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span className="text-xs font-semibold text-white">{comment.author_name}</span>
+                                <span className="text-[11px] text-slate-400">{formatPostDate(comment.created_at)}</span>
+                              </div>
+                              <p className="text-xs text-slate-300 whitespace-pre-wrap">{comment.content}</p>
+                            </div>
+                          </div>
+                        ))}
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={commentDrafts[post.id] || ''}
+                            onChange={(e) =>
+                              setCommentDrafts((current) => ({
+                                ...current,
+                                [post.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="Write an admin comment..."
+                            className="flex-1 bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 placeholder:text-slate-500 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSubmitComment(post.id)}
+                            disabled={commentSubmitting[post.id]}
+                            className="bg-teal-400 text-slate-950 font-semibold px-4 py-2.5 rounded-lg disabled:opacity-60"
+                          >
+                            {commentSubmitting[post.id] ? '...' : 'Send'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
