@@ -14,7 +14,6 @@ const TIER_OPTIONS = [
 const EMPTY_FORM = {
   tier: 'ALL',
   message: '',
-  imageUrl: '',
 };
 
 const formatPostDate = (value) => {
@@ -37,6 +36,12 @@ const Community = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [clearImage, setClearImage] = useState(false);
+  const [expandedComments, setExpandedComments] = useState({});
+  const [commentDrafts, setCommentDrafts] = useState({});
+  const [commentSubmitting, setCommentSubmitting] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -62,6 +67,30 @@ const Community = () => {
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setEditingPostId('');
+    setSelectedImage(null);
+    setImagePreview('');
+    setClearImage(false);
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      const base64 = result.includes(',') ? result.split(',')[1] : '';
+      setSelectedImage({
+        image_base64: base64,
+        mime_type: file.type || 'image/jpeg',
+        file_name: file.name || 'community-image.jpg',
+      });
+      setImagePreview(result);
+      setClearImage(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async () => {
@@ -80,8 +109,9 @@ const Community = () => {
           method: 'PATCH',
           body: {
             content,
-            image_url: form.imageUrl.trim(),
             audience: form.tier,
+            clear_image: clearImage,
+            ...(selectedImage || {}),
           },
         });
         setSuccess('Community post updated');
@@ -90,8 +120,8 @@ const Community = () => {
           method: 'POST',
           body: {
             content,
-            image_url: form.imageUrl.trim(),
             audience: form.tier,
+            ...(selectedImage || {}),
           },
         });
         setSuccess('Community post published');
@@ -111,8 +141,10 @@ const Community = () => {
     setForm({
       tier: post.audience || 'ALL',
       message: post.content || '',
-      imageUrl: post.image_url || '',
     });
+    setSelectedImage(null);
+    setImagePreview(post.image_url || '');
+    setClearImage(false);
     setSuccess('');
     setError('');
   };
@@ -134,6 +166,42 @@ const Community = () => {
       setError(deleteError.message || 'Failed to delete community post');
     } finally {
       setDeletingPostId('');
+    }
+  };
+
+  const handleSubmitComment = async (postId) => {
+    const content = (commentDrafts[postId] || '').trim();
+    if (!content || commentSubmitting[postId]) {
+      return;
+    }
+
+    setCommentSubmitting((current) => ({ ...current, [postId]: true }));
+    setError('');
+    setSuccess('');
+    try {
+      const response = await adminApiRequest(`/community/posts/${postId}/comments`, {
+        method: 'POST',
+        body: { content },
+      });
+
+      setCommentDrafts((current) => ({ ...current, [postId]: '' }));
+      setExpandedComments((current) => ({ ...current, [postId]: true }));
+      setPosts((current) =>
+        current.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                comment_count: (post.comment_count || 0) + 1,
+                comments: [...(post.comments || []), response].slice(-6),
+              }
+            : post
+        )
+      );
+      setSuccess('Comment added');
+    } catch (commentError) {
+      setError(commentError.message || 'Failed to add comment');
+    } finally {
+      setCommentSubmitting((current) => ({ ...current, [postId]: false }));
     }
   };
 
@@ -165,13 +233,14 @@ const Community = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Photo Url</label>
-              <div className="flex items-center justify-center gap-2 bg-[#0f172a] border border-[#334155] rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px]">
+            <label className="block">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Photo</span>
+              <span className="flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-[#151e32] border border-[#334155] transition-colors rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px] cursor-pointer">
                 <FaImage className="text-slate-400" />
-                <span>Paste below</span>
-              </div>
-            </div>
+                <span>{selectedImage || imagePreview ? 'Change' : 'Add'}</span>
+              </span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+            </label>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Post Type</label>
               <div className="flex items-center justify-center gap-2 bg-[#0f172a] border border-[#334155] rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px]">
@@ -193,16 +262,24 @@ const Community = () => {
           />
         </div>
 
-        <div className="mb-6">
-          <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">Image Url</label>
-          <input
-            type="text"
-            placeholder="https://..."
-            className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-3 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 placeholder:text-slate-500"
-            value={form.imageUrl}
-            onChange={(e) => setForm((current) => ({ ...current, imageUrl: e.target.value }))}
-          />
-        </div>
+        {imagePreview ? (
+          <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3">
+            <img src={imagePreview} alt="Community upload preview" className="w-full max-h-64 object-cover rounded-lg" />
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedImage(null);
+                  setImagePreview('');
+                  setClearImage(true);
+                }}
+                className="text-xs text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
+              >
+                Remove image
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {error ? <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
         {success ? <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{success}</div> : null}
@@ -251,9 +328,17 @@ const Community = () => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex flex-col gap-2 min-w-0">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <div className="w-8 h-8 rounded-full bg-[#0cd7d3] flex items-center justify-center font-bold text-[#0f172a] text-sm shrink-0">
-                      {(post.author_name || 'A').slice(0, 1).toUpperCase()}
-                    </div>
+                    {post.author_profile_image ? (
+                      <img
+                        src={post.author_profile_image}
+                        alt={post.author_name || "Author"}
+                        className="w-8 h-8 rounded-full object-cover border border-[#334155] shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-[#0cd7d3] flex items-center justify-center font-bold text-[#0f172a] text-sm shrink-0">
+                        {(post.author_name || 'A').slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
                     <span className="font-semibold text-white text-sm">{post.author_name}</span>
                     <span className="text-[11px] text-slate-400">{formatPostDate(post.created_at)}</span>
                     <span className="bg-[#2a374a] text-[#9baec2] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
@@ -263,15 +348,109 @@ const Community = () => {
                   </div>
                   <p className="text-[13px] text-slate-300 pl-11 whitespace-pre-wrap">{post.content}</p>
                   {post.image_url ? (
-                    <a
-                      href={post.image_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="pl-11 text-xs text-teal-300 hover:text-teal-200"
-                    >
-                      Open attached image
-                    </a>
+                    <div className="pl-11">
+                      <img src={post.image_url} alt="Community post" className="mt-1 max-h-64 rounded-lg border border-[#334155] object-cover" />
+                    </div>
                   ) : null}
+
+                  <div className="pl-11 pt-2">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                      <span>{post.like_count || 0} reactions</span>
+                      <span>{post.comment_count || 0} comments</span>
+                    </div>
+
+                    {(post.reactions?.length ?? 0) > 0 ? (
+                      <div className="mt-3 rounded-xl border border-[#334155] bg-[#0f172a] px-3 py-3">
+                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                          Reacted By
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {post.reactions.map((reaction) => (
+                            <div
+                              key={`${post.id}-${reaction.user_id}-${reaction.created_at}`}
+                              className="flex items-center gap-2 rounded-full border border-[#334155] bg-[#111827] px-2.5 py-1.5"
+                            >
+                              {reaction.user_profile_image ? (
+                                <img
+                                  src={reaction.user_profile_image}
+                                  alt={reaction.user_name}
+                                  className="w-5 h-5 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-[#334155] flex items-center justify-center text-[10px] font-bold text-white">
+                                  {(reaction.user_name || "U").slice(0, 1).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="text-[11px] text-slate-200">{reaction.user_name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedComments((current) => ({
+                          ...current,
+                          [post.id]: !current[post.id],
+                        }))
+                      }
+                      className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      {expandedComments[post.id] ? 'Hide comments' : `Comments (${post.comment_count || 0})`}
+                    </button>
+
+                    {(expandedComments[post.id] || (post.comments?.length ?? 0) > 0) ? (
+                      <div className="mt-3 space-y-3">
+                        {(post.comments || []).map((comment) => (
+                          <div key={comment.id} className="flex items-start gap-3">
+                            {comment.author_profile_image ? (
+                              <img
+                                src={comment.author_profile_image}
+                                alt={comment.author_name}
+                                className="w-7 h-7 rounded-full object-cover border border-[#334155]"
+                              />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-[#334155] flex items-center justify-center text-[11px] font-bold text-white">
+                                {(comment.author_name || 'A').slice(0, 1).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 rounded-xl bg-[#0f172a] border border-[#334155] px-3 py-2">
+                              <div className="flex flex-wrap items-center gap-2 mb-1">
+                                <span className="text-xs font-semibold text-white">{comment.author_name}</span>
+                                <span className="text-[11px] text-slate-400">{formatPostDate(comment.created_at)}</span>
+                              </div>
+                              <p className="text-xs text-slate-300 whitespace-pre-wrap">{comment.content}</p>
+                            </div>
+                          </div>
+                        ))}
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={commentDrafts[post.id] || ''}
+                            onChange={(e) =>
+                              setCommentDrafts((current) => ({
+                                ...current,
+                                [post.id]: e.target.value,
+                              }))
+                            }
+                            placeholder="Write an admin comment..."
+                            className="flex-1 bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 placeholder:text-slate-500 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSubmitComment(post.id)}
+                            disabled={commentSubmitting[post.id]}
+                            className="bg-teal-400 text-slate-950 font-semibold px-4 py-2.5 rounded-lg disabled:opacity-60"
+                          >
+                            {commentSubmitting[post.id] ? '...' : 'Send'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
