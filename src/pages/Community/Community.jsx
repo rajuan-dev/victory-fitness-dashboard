@@ -14,7 +14,6 @@ const TIER_OPTIONS = [
 const EMPTY_FORM = {
   tier: 'ALL',
   message: '',
-  imageUrl: '',
 };
 
 const formatPostDate = (value) => {
@@ -37,6 +36,9 @@ const Community = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [clearImage, setClearImage] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -62,6 +64,30 @@ const Community = () => {
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setEditingPostId('');
+    setSelectedImage(null);
+    setImagePreview('');
+    setClearImage(false);
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      const base64 = result.includes(',') ? result.split(',')[1] : '';
+      setSelectedImage({
+        image_base64: base64,
+        mime_type: file.type || 'image/jpeg',
+        file_name: file.name || 'community-image.jpg',
+      });
+      setImagePreview(result);
+      setClearImage(false);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = async () => {
@@ -80,8 +106,9 @@ const Community = () => {
           method: 'PATCH',
           body: {
             content,
-            image_url: form.imageUrl.trim(),
             audience: form.tier,
+            clear_image: clearImage,
+            ...(selectedImage || {}),
           },
         });
         setSuccess('Community post updated');
@@ -90,8 +117,8 @@ const Community = () => {
           method: 'POST',
           body: {
             content,
-            image_url: form.imageUrl.trim(),
             audience: form.tier,
+            ...(selectedImage || {}),
           },
         });
         setSuccess('Community post published');
@@ -111,8 +138,10 @@ const Community = () => {
     setForm({
       tier: post.audience || 'ALL',
       message: post.content || '',
-      imageUrl: post.image_url || '',
     });
+    setSelectedImage(null);
+    setImagePreview(post.image_url || '');
+    setClearImage(false);
     setSuccess('');
     setError('');
   };
@@ -165,13 +194,14 @@ const Community = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Photo Url</label>
-              <div className="flex items-center justify-center gap-2 bg-[#0f172a] border border-[#334155] rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px]">
+            <label className="block">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Photo</span>
+              <span className="flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-[#151e32] border border-[#334155] transition-colors rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px] cursor-pointer">
                 <FaImage className="text-slate-400" />
-                <span>Paste below</span>
-              </div>
-            </div>
+                <span>{selectedImage || imagePreview ? 'Change' : 'Add'}</span>
+              </span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+            </label>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Post Type</label>
               <div className="flex items-center justify-center gap-2 bg-[#0f172a] border border-[#334155] rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px]">
@@ -193,16 +223,24 @@ const Community = () => {
           />
         </div>
 
-        <div className="mb-6">
-          <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">Image Url</label>
-          <input
-            type="text"
-            placeholder="https://..."
-            className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-3 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 placeholder:text-slate-500"
-            value={form.imageUrl}
-            onChange={(e) => setForm((current) => ({ ...current, imageUrl: e.target.value }))}
-          />
-        </div>
+        {imagePreview ? (
+          <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3">
+            <img src={imagePreview} alt="Community upload preview" className="w-full max-h-64 object-cover rounded-lg" />
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedImage(null);
+                  setImagePreview('');
+                  setClearImage(true);
+                }}
+                className="text-xs text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
+              >
+                Remove image
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {error ? <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
         {success ? <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{success}</div> : null}
@@ -263,14 +301,9 @@ const Community = () => {
                   </div>
                   <p className="text-[13px] text-slate-300 pl-11 whitespace-pre-wrap">{post.content}</p>
                   {post.image_url ? (
-                    <a
-                      href={post.image_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="pl-11 text-xs text-teal-300 hover:text-teal-200"
-                    >
-                      Open attached image
-                    </a>
+                    <div className="pl-11">
+                      <img src={post.image_url} alt="Community post" className="mt-1 max-h-64 rounded-lg border border-[#334155] object-cover" />
+                    </div>
                   ) : null}
                 </div>
 
