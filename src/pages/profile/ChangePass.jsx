@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
+import { adminApiRequest } from "../../../services/auth.service";
 
 function ChangePass() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     oldPassword: "",
     newPassword: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -14,9 +15,9 @@ function ChangePass() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
     setError("");
     setSuccess("");
@@ -24,32 +25,38 @@ function ChangePass() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (formData.newPassword !== formData.confirmPassword) {
       setError("New passwords do not match");
       return;
     }
-    
-    if (formData.newPassword.length < 6) {
-      setError("New password must be at least 6 characters long");
+
+    if (formData.newPassword.length < 8) {
+      setError("New password must be at least 8 characters long");
       return;
     }
-    
+
     setIsLoading(true);
+    setError("");
+    setSuccess("");
+
     try {
-      // Mock API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      setSuccess("Password changed successfully (Demo)!");
-      setError("");
+      await adminApiRequest("/admin/me/change-password", {
+        method: "POST",
+        body: {
+          current_password: formData.oldPassword,
+          new_password: formData.newPassword,
+        },
+      });
+
+      setSuccess("Password changed successfully");
       setFormData({
         oldPassword: "",
         newPassword: "",
-        confirmPassword: ""
+        confirmPassword: "",
       });
     } catch (err) {
-      setError("Failed to change password");
-      setSuccess("");
+      setError(err.message || "Failed to change password");
     } finally {
       setIsLoading(false);
     }
@@ -83,11 +90,7 @@ function ChangePass() {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center text-[#6A6D76]"
             >
-              {showPassword ? (
-                <IoEyeOffOutline className="w-5 h-5" />
-              ) : (
-                <IoEyeOutline className="w-5 h-5" />
-              )}
+              {showPassword ? <IoEyeOffOutline className="w-5 h-5" /> : <IoEyeOutline className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -113,11 +116,7 @@ function ChangePass() {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center text-[#6A6D76]"
             >
-              {showPassword ? (
-                <IoEyeOffOutline className="w-5 h-5" />
-              ) : (
-                <IoEyeOutline className="w-5 h-5" />
-              )}
+              {showPassword ? <IoEyeOffOutline className="w-5 h-5" /> : <IoEyeOutline className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -143,29 +142,16 @@ function ChangePass() {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center text-[#6A6D76]"
             >
-              {showPassword ? (
-                <IoEyeOffOutline className="w-5 h-5" />
-              ) : (
-                <IoEyeOutline className="w-5 h-5" />
-              )}
+              {showPassword ? <IoEyeOffOutline className="w-5 h-5" /> : <IoEyeOutline className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {error && (
-          <div className="text-red-500 text-sm text-center">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="text-green-500 text-sm text-center">
-            {success}
-          </div>
-        )}
+        {error ? <div className="text-red-500 text-sm text-center">{error}</div> : null}
+        {success ? <div className="text-green-500 text-sm text-center">{success}</div> : null}
 
         <div className="text-center pt-2">
-          <button 
+          <button
             type="submit"
             disabled={isLoading}
             className="bg-blue-600 text-white font-semibold w-full py-3 rounded-md hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed"

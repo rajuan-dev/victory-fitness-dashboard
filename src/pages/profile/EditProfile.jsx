@@ -1,34 +1,33 @@
-import { useState, useEffect } from "react";
-import { globalDemoData } from "../../utils/demoData";
+import { useEffect, useState } from "react";
+import { adminApiRequest } from "../../../services/auth.service";
 
-
-function EditProfile() {
+function EditProfile({ profileData, onProfileUpdated }) {
   const [formData, setFormData] = useState({
     fullName: "",
     country: "",
-    contactNumber: ""
+    contactNumber: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  
-  const profileData = globalDemoData.profileData;
-  const isLoading = false;
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (profileData) {
-      setFormData({
-        fullName: profileData.fullName || "",
-        country: profileData.country || "",
-        contactNumber: profileData.contactNumber || ""
-      });
+    if (!profileData) {
+      return;
     }
+
+    setFormData({
+      fullName: profileData.fullName || "",
+      country: profileData.country || "",
+      contactNumber: profileData.contactNumber || "",
+    });
   }, [profileData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
     setError("");
     setSuccess("");
@@ -36,16 +35,29 @@ function EditProfile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setIsLoading(true);
+    setError("");
+    setSuccess("");
+
     try {
-      Object.assign(globalDemoData.profileData, formData);
-      setSuccess("Profile updated successfully (Demo)!");
-      setError("");
+      const updatedProfile = await adminApiRequest("/admin/me", {
+        method: "PATCH",
+        body: {
+          fullName: formData.fullName.trim(),
+          country: formData.country.trim(),
+          contactNumber: formData.contactNumber.trim(),
+        },
+      });
+
+      onProfileUpdated?.(updatedProfile);
+      setSuccess("Profile updated successfully");
     } catch (err) {
-      setError("Failed to update profile");
-      setSuccess("");
+      setError(err.message || "Failed to update profile");
+    } finally {
+      setIsLoading(false);
     }
   };
+
   return (
     <div className="w-full flex justify-center items-center p-4">
       <div className="bg-white w-full max-w-xl px-4 sm:px-6 md:px-8 py-5 rounded-md border border-gray-200 shadow-sm">
@@ -94,7 +106,6 @@ function EditProfile() {
               onChange={handleInputChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-md outline-none placeholder:text-sm md:placeholder:text-base focus:ring-2 focus:ring-[#74AA2E]"
               placeholder="Enter contact number"
-              required
             />
           </div>
 
@@ -112,20 +123,11 @@ function EditProfile() {
             />
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="text-green-500 text-sm text-center">
-              {success}
-            </div>
-          )}
+          {error ? <div className="text-red-500 text-sm text-center">{error}</div> : null}
+          {success ? <div className="text-green-500 text-sm text-center">{success}</div> : null}
 
           <div className="text-center pt-2">
-            <button 
+            <button
               type="submit"
               disabled={isLoading}
               className="bg-blue-600 text-white font-semibold w-full py-3 rounded-lg hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
