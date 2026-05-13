@@ -958,7 +958,13 @@ const Challenges = () => {
               <p className="ant-upload-text">Click or drag thumbnail image here</p>
               <p className="ant-upload-hint">Supports PNG, JPG, and WEBP.</p>
             </Dragger>
-            <p className="mt-3 text-xs text-slate-500">No thumbnail selected yet.</p>
+            {thumbnailPreview ? (
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <img src={thumbnailPreview} alt="Challenge thumbnail preview" className="h-40 w-full object-cover" />
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-slate-500">No thumbnail selected yet.</p>
+            )}
           </Form.Item>
 
           <div className="flex justify-end gap-3 mt-8">
