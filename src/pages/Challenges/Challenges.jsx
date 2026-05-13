@@ -78,6 +78,55 @@ const toBase64Payload = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
+const createId = (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+
+const createEmptyExercise = () => ({
+  id: createId('exercise'),
+  name: '',
+  details: '',
+  notes: '',
+});
+
+const createEmptySection = () => ({
+  id: createId('section'),
+  title: '',
+  description: '',
+  estimated_minutes: 15,
+  exercises: [createEmptyExercise(), createEmptyExercise()],
+});
+
+const createEmptyDay = (dayNumber) => ({
+  day_number: dayNumber,
+  title: `Day ${dayNumber}`,
+  focus: '',
+  notes: '',
+  sections: [createEmptySection(), createEmptySection()],
+});
+
+const normalizePlanDays = (days = []) =>
+  days.map((day, dayIndex) => ({
+    day_number: Number(day?.day_number || dayIndex + 1),
+    title: day?.title || `Day ${dayIndex + 1}`,
+    focus: day?.focus || '',
+    notes: day?.notes || '',
+    sections: Array.isArray(day?.sections) && day.sections.length > 0
+      ? day.sections.map((section, sectionIndex) => ({
+          id: section?.id || createId(`section-${dayIndex + 1}-${sectionIndex + 1}`),
+          title: section?.title || '',
+          description: section?.description || '',
+          estimated_minutes: Number(section?.estimated_minutes || 15),
+          exercises: Array.isArray(section?.exercises) && section.exercises.length > 0
+            ? section.exercises.map((exercise, exerciseIndex) => ({
+                id: exercise?.id || createId(`exercise-${dayIndex + 1}-${sectionIndex + 1}-${exerciseIndex + 1}`),
+                name: exercise?.name || '',
+                details: exercise?.details || '',
+                notes: exercise?.notes || '',
+              }))
+            : [createEmptyExercise()],
+        }))
+      : [createEmptySection()],
+  }));
+
 const Challenges = () => {
   const [challenges, setChallenges] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -89,6 +138,8 @@ const Challenges = () => {
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState('');
   const [thumbnailFileList, setThumbnailFileList] = useState([]);
+  const [planDays, setPlanDays] = useState([]);
+  const [planGenerating, setPlanGenerating] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [moderationChallenge, setModerationChallenge] = useState(null);
   const [moderationMessages, setModerationMessages] = useState([]);
@@ -119,6 +170,7 @@ const Challenges = () => {
     setSelectedThumbnail(null);
     setThumbnailPreview('');
     setThumbnailFileList([]);
+    setPlanDays([]);
     form.setFieldsValue({
       category: 'Strength',
       durationDays: 7,
@@ -134,13 +186,13 @@ const Challenges = () => {
     form.setFieldsValue({
       title: challenge.title,
       description: challenge.description,
-      planText: challenge.planText,
       category: challenge.category,
       durationDays: challenge.durationDays,
       points: challenge.points,
       difficulty: challenge.difficulty,
       status: challenge.status,
     });
+    setPlanDays(normalizePlanDays(challenge.planDays || []));
     setSelectedThumbnail(null);
     setThumbnailPreview(challenge.thumbnail || '');
     setThumbnailFileList([]);
@@ -170,8 +222,120 @@ const Challenges = () => {
     setThumbnailPreview(editingChallenge?.thumbnail || '');
   };
 
-  const loadThirtyDayPreset = () => {
-    form.setFieldsValue(THIRTY_DAY_PLAN_PRESET);
+  const updatePlanDay = (dayIndex, updater) => {
+    setPlanDays((current) => current.map((day, index) => (index === dayIndex ? updater(day) : day)));
+  };
+
+  const addPlanDay = () => {
+    setPlanDays((current) => {
+      const nextDays = [...current, createEmptyDay(current.length + 1)];
+      form.setFieldsValue({ durationDays: nextDays.length });
+      return nextDays;
+    });
+  };
+
+  const removePlanDay = (dayIndex) => {
+    setPlanDays((current) =>
+      current
+        .filter((_, index) => index !== dayIndex)
+        .map((day, index) => ({ ...day, day_number: index + 1, title: day.title || `Day ${index + 1}` }))
+    );
+  };
+
+  const addSection = (dayIndex) => {
+    updatePlanDay(dayIndex, (day) => ({
+      ...day,
+      sections: [...day.sections, createEmptySection()],
+    }));
+  };
+
+  const removeSection = (dayIndex, sectionIndex) => {
+    updatePlanDay(dayIndex, (day) => ({
+      ...day,
+      sections: day.sections.filter((_, index) => index !== sectionIndex),
+    }));
+  };
+
+  const updateSection = (dayIndex, sectionIndex, field, value) => {
+    updatePlanDay(dayIndex, (day) => ({
+      ...day,
+      sections: day.sections.map((section, index) => (
+        index === sectionIndex
+          ? { ...section, [field]: field === 'estimated_minutes' ? Number(value || 0) : value }
+          : section
+      )),
+    }));
+  };
+
+  const addExercise = (dayIndex, sectionIndex) => {
+    updatePlanDay(dayIndex, (day) => ({
+      ...day,
+      sections: day.sections.map((section, index) => (
+        index === sectionIndex
+          ? { ...section, exercises: [...section.exercises, createEmptyExercise()] }
+          : section
+      )),
+    }));
+  };
+
+  const removeExercise = (dayIndex, sectionIndex, exerciseIndex) => {
+    updatePlanDay(dayIndex, (day) => ({
+      ...day,
+      sections: day.sections.map((section, index) => (
+        index === sectionIndex
+          ? { ...section, exercises: section.exercises.filter((_, itemIndex) => itemIndex !== exerciseIndex) }
+          : section
+      )),
+    }));
+  };
+
+  const updateExercise = (dayIndex, sectionIndex, exerciseIndex, field, value) => {
+    updatePlanDay(dayIndex, (day) => ({
+      ...day,
+      sections: day.sections.map((section, index) => (
+        index === sectionIndex
+          ? {
+              ...section,
+              exercises: section.exercises.map((exercise, itemIndex) => (
+                itemIndex === exerciseIndex ? { ...exercise, [field]: value } : exercise
+              )),
+            }
+          : section
+      )),
+    }));
+  };
+
+  const loadThirtyDayPreset = async () => {
+    const values = form.getFieldsValue();
+    const payload = {
+      title: values.title || THIRTY_DAY_PLAN_PRESET.title,
+      description: values.description || THIRTY_DAY_PLAN_PRESET.description,
+      category: values.category || THIRTY_DAY_PLAN_PRESET.category,
+      difficulty: values.difficulty || THIRTY_DAY_PLAN_PRESET.difficulty,
+      durationDays: 30,
+    };
+
+    setPlanGenerating(true);
+    try {
+      const response = await adminApiRequest('/admin/challenges/generate-plan', {
+        method: 'POST',
+        body: payload,
+      });
+      const generatedPlanDays = normalizePlanDays(response?.planDays || []);
+      setPlanDays(generatedPlanDays);
+      form.setFieldsValue({
+        title: response?.title || payload.title,
+        description: response?.description || payload.description,
+        durationDays: response?.durationDays || generatedPlanDays.length || payload.durationDays,
+        category: payload.category,
+        difficulty: payload.difficulty,
+      });
+      message.success('30-day plan generated');
+    } catch (loadError) {
+      message.error(loadError.message || 'Failed to generate challenge plan');
+    } finally {
+      setPlanGenerating(false);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -233,8 +397,12 @@ const Challenges = () => {
   const handleSubmit = async (values) => {
     setSaving(true);
     try {
+      const normalizedPlanDays = normalizePlanDays(planDays);
       const payload = {
         ...values,
+        durationDays: normalizedPlanDays.length > 0 ? normalizedPlanDays.length : values.durationDays,
+        planDays: normalizedPlanDays,
+        planText: normalizedPlanDays.length > 0 ? '' : (editingChallenge?.planText || values.planText || ''),
         thumbnail: thumbnailPreview || editingChallenge?.thumbnail || '',
         ...(selectedThumbnail || {}),
       };
@@ -410,17 +578,146 @@ const Challenges = () => {
           </Form.Item>
 
           <div className="mb-4 flex justify-end">
-            <Button onClick={loadThirtyDayPreset} type="default">
-              Load 30-Day Preset
+            <Button onClick={loadThirtyDayPreset} type="default" loading={planGenerating}>
+              Generate 30-Day Plan
             </Button>
           </div>
 
-          <Form.Item
-            name="planText"
-            label={<span className="font-medium text-slate-700">Plan Details</span>}
-          >
-            <Input.TextArea rows={14} placeholder="Add the day-by-day challenge plan here" />
-          </Form.Item>
+          <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">Day-by-Day Plan</h3>
+                <p className="text-xs text-slate-500">Each day can contain multiple sections, and each section can contain multiple exercises.</p>
+              </div>
+              <Button onClick={addPlanDay} type="dashed">
+                Add Day
+              </Button>
+            </div>
+
+            {planDays.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                No plan days yet. Generate a 30-day plan or add days manually.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {planDays.map((day, dayIndex) => (
+                  <div key={`day-${day.day_number}-${dayIndex}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-600">Day {day.day_number}</p>
+                        <p className="text-xs text-slate-500">Edit the structure for this day.</p>
+                      </div>
+                      <Button danger type="text" onClick={() => removePlanDay(dayIndex)}>
+                        Remove Day
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <Input
+                        value={day.title}
+                        onChange={(event) => updatePlanDay(dayIndex, (currentDay) => ({ ...currentDay, title: event.target.value }))}
+                        placeholder="Day title"
+                      />
+                      <Input
+                        value={day.focus}
+                        onChange={(event) => updatePlanDay(dayIndex, (currentDay) => ({ ...currentDay, focus: event.target.value }))}
+                        placeholder="Focus"
+                      />
+                    </div>
+
+                    <Input.TextArea
+                      className="mt-3"
+                      rows={2}
+                      value={day.notes}
+                      onChange={(event) => updatePlanDay(dayIndex, (currentDay) => ({ ...currentDay, notes: event.target.value }))}
+                      placeholder="Coaching notes for the day"
+                    />
+
+                    <div className="mt-4 space-y-3">
+                      {day.sections.map((section, sectionIndex) => (
+                        <div key={section.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <h4 className="text-sm font-semibold text-slate-800">Section {sectionIndex + 1}</h4>
+                            <Button danger type="text" onClick={() => removeSection(dayIndex, sectionIndex)}>
+                              Remove Section
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_140px]">
+                            <Input
+                              value={section.title}
+                              onChange={(event) => updateSection(dayIndex, sectionIndex, 'title', event.target.value)}
+                              placeholder="Section title"
+                            />
+                            <InputNumber
+                              min={0}
+                              max={240}
+                              className="w-full"
+                              value={section.estimated_minutes}
+                              onChange={(value) => updateSection(dayIndex, sectionIndex, 'estimated_minutes', value)}
+                              placeholder="Minutes"
+                            />
+                          </div>
+
+                          <Input.TextArea
+                            className="mt-3"
+                            rows={2}
+                            value={section.description}
+                            onChange={(event) => updateSection(dayIndex, sectionIndex, 'description', event.target.value)}
+                            placeholder="Section description"
+                          />
+
+                          <div className="mt-3 space-y-3">
+                            {section.exercises.map((exercise, exerciseIndex) => (
+                              <div key={exercise.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Exercise {exerciseIndex + 1}</p>
+                                  <Button danger type="text" onClick={() => removeExercise(dayIndex, sectionIndex, exerciseIndex)}>
+                                    Remove
+                                  </Button>
+                                </div>
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                  <Input
+                                    value={exercise.name}
+                                    onChange={(event) => updateExercise(dayIndex, sectionIndex, exerciseIndex, 'name', event.target.value)}
+                                    placeholder="Exercise name"
+                                  />
+                                  <Input
+                                    value={exercise.details}
+                                    onChange={(event) => updateExercise(dayIndex, sectionIndex, exerciseIndex, 'details', event.target.value)}
+                                    placeholder="Sets / reps / time"
+                                  />
+                                </div>
+                                <Input.TextArea
+                                  className="mt-3"
+                                  rows={2}
+                                  value={exercise.notes}
+                                  onChange={(event) => updateExercise(dayIndex, sectionIndex, exerciseIndex, 'notes', event.target.value)}
+                                  placeholder="Exercise notes"
+                                />
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="mt-3 flex justify-end">
+                            <Button onClick={() => addExercise(dayIndex, sectionIndex)} type="dashed">
+                              Add Exercise
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 flex justify-end">
+                      <Button onClick={() => addSection(dayIndex)} type="dashed">
+                        Add Section
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <Form.Item
             name="category"
