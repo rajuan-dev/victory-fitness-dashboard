@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin, Upload } from 'antd';
+import { Modal, Drawer, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin, Upload } from 'antd';
 import { FiChevronDown, FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
 import { FaBolt, FaComments, FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
 import { InboxOutlined } from '@ant-design/icons';
@@ -607,13 +607,30 @@ const Challenges = () => {
         </div>
       )}
 
-      <Modal
+      <Drawer
         title={<span className="text-slate-800">{editingChallenge ? 'Edit Challenge' : 'Add New Challenge'}</span>}
         open={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
-        footer={null}
+        onClose={() => setIsModalVisible(false)}
         destroyOnClose
+        placement="right"
+        width={920}
         className="workout-modal"
+        styles={{
+          body: {
+            paddingTop: 12,
+            paddingBottom: 24,
+            background: '#f8fafc',
+          },
+          header: {
+            borderBottom: '1px solid #e2e8f0',
+            paddingInline: 24,
+            paddingBlock: 18,
+            background: '#ffffff',
+          },
+          content: {
+            background: '#f8fafc',
+          },
+        }}
       >
         <Form
           form={form}
@@ -906,7 +923,7 @@ const Challenges = () => {
             </Button>
           </div>
         </Form>
-      </Modal>
+      </Drawer>
 
       <Modal
         title={<span className="text-slate-800">Challenge Chat Moderation</span>}
