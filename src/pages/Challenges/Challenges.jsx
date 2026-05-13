@@ -8,6 +8,59 @@ import { adminApiRequest } from '../../../services/auth.service';
 const defaultThumbnail = 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=300&auto=format&fit=crop';
 const challengeCategories = ['Strength', 'Cardio', 'Mindfulness', 'Nutrition', 'Family'];
 const { Dragger } = Upload;
+const challengeStatusFilters = ['ALL', 'ACTIVE', 'UPCOMING', 'DRAFT', 'ARCHIVED'];
+const THIRTY_DAY_PLAN_PRESET = {
+  title: '30-Day Strength & Consistency Reset',
+  description: 'A guided 30-day challenge designed to improve consistency, movement quality, recovery, and overall strength with realistic daily actions.',
+  planText: `WEEK 1 - FOUNDATION
+Day 1: Full-body bodyweight session. Focus on form, tempo, and breathing.
+Day 2: 30-minute brisk walk and 10 minutes of mobility.
+Day 3: Lower-body strength focus with squats, glute bridges, and lunges.
+Day 4: Recovery day. Stretching, hydration target, and sleep focus.
+Day 5: Upper-body strength focus with push-ups, rows, and planks.
+Day 6: Low-impact cardio for 25-35 minutes.
+Day 7: Weekly reset. Progress check-in, meal prep, and light movement.
+
+WEEK 2 - CONSISTENCY
+Day 8: Full-body strength circuit with controlled reps.
+Day 9: Core and posture session plus 8,000+ steps.
+Day 10: Lower-body progression. Add reps or time under tension.
+Day 11: Recovery walk and mobility flow.
+Day 12: Upper-body progression. Add one extra round.
+Day 13: Cardio endurance session for 30 minutes.
+Day 14: Weekly reset. Reflect on wins, friction points, and energy.
+
+WEEK 3 - PROGRESSION
+Day 15: Full-body strength with shorter rest periods.
+Day 16: Active recovery and deep stretching.
+Day 17: Lower-body challenge with unilateral work and core finisher.
+Day 18: Cardio intervals. Short bursts with controlled recovery.
+Day 19: Upper-body strength and stability work.
+Day 20: Long walk or easy cardio session. Stay in a sustainable zone.
+Day 21: Weekly reset. Review progress, update goals, prepare next week.
+
+WEEK 4 - FINISH STRONG
+Day 22: Full-body power and control session.
+Day 23: Recovery mobility, hydration, and sleep optimization day.
+Day 24: Lower-body strength challenge. Match or beat prior output.
+Day 25: Cardio intervals or tempo session.
+Day 26: Upper-body challenge. Focus on clean reps and consistency.
+Day 27: Active recovery plus mindset reset.
+Day 28: Full-body finisher workout with moderate intensity.
+Day 29: Light movement, stretch, and personal reflection.
+Day 30: Final challenge day. Complete a full-body test session and share your 30-day results.
+
+COACHING NOTES
+- Aim for consistency over perfection.
+- Prioritize sleep, hydration, and protein intake.
+- If soreness is high, reduce intensity but keep the habit alive.
+- Encourage users to share progress daily in challenge chat and use @Coach for support.`,
+  category: 'Strength',
+  durationDays: 30,
+  points: 500,
+  difficulty: 'INTERMEDIATE',
+  status: 'ACTIVE',
+};
 
 const toBase64Payload = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
@@ -36,6 +89,7 @@ const Challenges = () => {
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState('');
   const [thumbnailFileList, setThumbnailFileList] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [moderationChallenge, setModerationChallenge] = useState(null);
   const [moderationMessages, setModerationMessages] = useState([]);
   const [moderationLoading, setModerationLoading] = useState(false);
@@ -80,6 +134,7 @@ const Challenges = () => {
     form.setFieldsValue({
       title: challenge.title,
       description: challenge.description,
+      planText: challenge.planText,
       category: challenge.category,
       durationDays: challenge.durationDays,
       points: challenge.points,
@@ -113,6 +168,10 @@ const Challenges = () => {
     setSelectedThumbnail(null);
     setThumbnailFileList([]);
     setThumbnailPreview(editingChallenge?.thumbnail || '');
+  };
+
+  const loadThirtyDayPreset = () => {
+    form.setFieldsValue(THIRTY_DAY_PLAN_PRESET);
   };
 
   const handleDelete = async (id) => {
@@ -202,19 +261,55 @@ const Challenges = () => {
     }
   };
 
+  const filteredChallenges = challenges.filter((challenge) => statusFilter === 'ALL' || challenge.status === statusFilter);
+
+  const statusToneMap = {
+    ACTIVE: {
+      card: 'border-l-cyan-400 shadow-cyan-500/10',
+      badge: 'text-cyan-300 bg-cyan-400/10 ring-1 ring-cyan-400/20',
+    },
+    UPCOMING: {
+      card: 'border-l-amber-400 shadow-amber-500/10',
+      badge: 'text-amber-300 bg-amber-400/10 ring-1 ring-amber-400/20',
+    },
+    DRAFT: {
+      card: 'border-l-violet-400 shadow-violet-500/10',
+      badge: 'text-violet-300 bg-violet-400/10 ring-1 ring-violet-400/20',
+    },
+    ARCHIVED: {
+      card: 'border-l-slate-400 shadow-slate-500/10',
+      badge: 'text-slate-300 bg-slate-400/10 ring-1 ring-slate-400/20',
+    },
+  };
+
   return (
     <div className="flex flex-col space-y-6 pt-2 h-full text-slate-100">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
-            Challenges ({challenges.length})
+            Challenges ({filteredChallenges.length})
           </h1>
           {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
         </div>
-        <div className="flex w-full md:w-auto">
+        <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+          <div className="flex flex-wrap gap-2">
+            {challengeStatusFilters.map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide transition-all ${
+                  statusFilter === status
+                    ? 'bg-slate-900 text-white shadow-lg'
+                    : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {status === 'ALL' ? 'All' : status}
+              </button>
+            ))}
+          </div>
           <button
             onClick={handleAdd}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-all shadow-md"
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-all shadow-md"
           >
             <FiPlus />
             Add Challenge
@@ -228,8 +323,10 @@ const Challenges = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 rounded-2xl shadow-xl border border-slate-700/50">
-          {challenges.map((challenge) => (
-            <div key={challenge.id} className="bg-[#1e293b] border border-[#334155] rounded-xl p-3 flex items-center gap-4 group hover:bg-[#253245] hover:border-slate-500 transition-all relative">
+          {filteredChallenges.map((challenge) => {
+            const statusTone = statusToneMap[challenge.status] || statusToneMap.DRAFT;
+            return (
+            <div key={challenge.id} className={`bg-[#1e293b] border border-[#334155] border-l-4 ${statusTone.card} rounded-xl p-3 flex items-center gap-4 group hover:bg-[#253245] hover:border-slate-500 transition-all relative`}>
               <div className="relative w-24 h-16 shrink-0 rounded-md overflow-hidden bg-slate-700">
                 <img src={challenge.thumbnail || defaultThumbnail} alt={challenge.title} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-orange-500">
@@ -242,15 +339,7 @@ const Challenges = () => {
                 <p className="text-xs text-slate-400 truncate mb-2 mt-0.5">{challenge.category} · {challenge.durationDays} days</p>
                 <div className="flex items-center gap-2 mt-auto flex-wrap">
                   <span className="text-[10px] uppercase tracking-wider text-teal-300 font-semibold bg-teal-400/10 px-2 py-0.5 rounded">{challenge.difficulty}</span>
-                  <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${
-                    challenge.status === 'ACTIVE'
-                      ? 'text-blue-300 bg-blue-400/10'
-                      : challenge.status === 'UPCOMING'
-                        ? 'text-orange-300 bg-orange-400/10'
-                        : challenge.status === 'ARCHIVED'
-                          ? 'text-slate-300 bg-slate-400/10'
-                          : 'text-violet-300 bg-violet-400/10'
-                  }`}>
+                  <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${statusTone.badge}`}>
                     {challenge.status}
                   </span>
                 </div>
@@ -281,7 +370,12 @@ const Challenges = () => {
                 </Popconfirm>
               </div>
             </div>
-          ))}
+          )})}
+          {filteredChallenges.length === 0 ? (
+            <div className="col-span-full rounded-2xl border border-dashed border-slate-600 bg-slate-900/40 px-4 py-12 text-center text-sm text-slate-400">
+              No challenges found for the selected status.
+            </div>
+          ) : null}
         </div>
       )}
 
@@ -313,6 +407,19 @@ const Challenges = () => {
             rules={[{ required: true, message: 'Please input the description' }]}
           >
             <Input.TextArea rows={4} placeholder="Describe what members should do in this challenge" />
+          </Form.Item>
+
+          <div className="mb-4 flex justify-end">
+            <Button onClick={loadThirtyDayPreset} type="default">
+              Load 30-Day Preset
+            </Button>
+          </div>
+
+          <Form.Item
+            name="planText"
+            label={<span className="font-medium text-slate-700">Plan Details</span>}
+          >
+            <Input.TextArea rows={14} placeholder="Add the day-by-day challenge plan here" />
           </Form.Item>
 
           <Form.Item
