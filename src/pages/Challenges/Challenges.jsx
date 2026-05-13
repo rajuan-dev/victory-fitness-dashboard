@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin, Upload } from 'antd';
 import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
-import { FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
+import { FaComments, FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
 import { InboxOutlined } from '@ant-design/icons';
 import { adminApiRequest } from '../../../services/auth.service';
 
@@ -36,6 +36,10 @@ const Challenges = () => {
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState('');
   const [thumbnailFileList, setThumbnailFileList] = useState([]);
+  const [moderationChallenge, setModerationChallenge] = useState(null);
+  const [moderationMessages, setModerationMessages] = useState([]);
+  const [moderationLoading, setModerationLoading] = useState(false);
+  const [moderationDeletingId, setModerationDeletingId] = useState('');
   const [form] = Form.useForm();
 
   const loadChallenges = async () => {
@@ -121,6 +125,49 @@ const Challenges = () => {
       message.error(deleteError.message || 'Failed to delete challenge');
     } finally {
       setDeletingId('');
+    }
+  };
+
+  const openModeration = async (challenge) => {
+    setModerationChallenge(challenge);
+    setModerationMessages([]);
+    setModerationLoading(true);
+    try {
+      const response = await adminApiRequest(`/admin/challenges/${challenge.id}/chat`);
+      setModerationMessages(Array.isArray(response?.messages) ? response.messages : []);
+    } catch (loadError) {
+      message.error(loadError.message || 'Failed to load challenge chat');
+    } finally {
+      setModerationLoading(false);
+    }
+  };
+
+  const handleModerationDelete = async (messageId) => {
+    if (!moderationChallenge) {
+      return;
+    }
+    setModerationDeletingId(messageId);
+    try {
+      await adminApiRequest(`/admin/challenges/${moderationChallenge.id}/chat/messages/${messageId}`, {
+        method: 'DELETE',
+      });
+      setModerationMessages((current) =>
+        current.map((item) =>
+          item.id === messageId
+            ? {
+                ...item,
+                content: '',
+                image_url: '',
+                is_deleted: true,
+              }
+            : item
+        )
+      );
+      message.success('Chat message removed');
+    } catch (deleteError) {
+      message.error(deleteError.message || 'Failed to remove message');
+    } finally {
+      setModerationDeletingId('');
     }
   };
 
@@ -215,6 +262,9 @@ const Challenges = () => {
               </div>
 
               <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                <button title="Moderate Chat" onClick={() => openModeration(challenge)} className="text-slate-400 hover:text-cyan-400 transition-colors">
+                  <FaComments size={15} />
+                </button>
                 <button title="Edit" onClick={() => handleEdit(challenge)} className="text-slate-400 hover:text-blue-400 transition-colors">
                   <FiEdit size={15} />
                 </button>
@@ -359,6 +409,72 @@ const Challenges = () => {
             </Button>
           </div>
         </Form>
+      </Modal>
+
+      <Modal
+        title={<span className="text-slate-800">Challenge Chat Moderation</span>}
+        open={Boolean(moderationChallenge)}
+        onCancel={() => setModerationChallenge(null)}
+        footer={null}
+        width={860}
+        destroyOnClose
+      >
+        <div className="mt-2">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-slate-800">{moderationChallenge?.title}</h3>
+            <p className="text-sm text-slate-500">{moderationChallenge?.category} · {moderationChallenge?.durationDays} days</p>
+          </div>
+
+          {moderationLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Spin size="large" />
+            </div>
+          ) : (
+            <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2">
+              {moderationMessages.map((item) => (
+                <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-slate-800">{item.author_name}</span>
+                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">{item.message_type}</span>
+                        {item.is_deleted ? <span className="text-[10px] font-semibold uppercase tracking-wide text-red-500">Deleted</span> : null}
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
+                        {item.is_deleted ? 'Message deleted' : item.content || (item.image_url ? 'Image attachment' : '')}
+                      </p>
+                      {item.image_url && !item.is_deleted ? (
+                        <img src={item.image_url} alt="Challenge chat" className="mt-3 max-h-56 rounded-lg border border-slate-200 object-cover" />
+                      ) : null}
+                    </div>
+                    {!item.is_deleted ? (
+                      <Popconfirm
+                        title="Remove this message?"
+                        description="This will hide the message from the challenge chat."
+                        onConfirm={() => handleModerationDelete(item.id)}
+                        okText="Remove"
+                        cancelText="Cancel"
+                      >
+                        <button
+                          title="Delete Message"
+                          disabled={moderationDeletingId === item.id}
+                          className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                        >
+                          <FiTrash2 size={15} />
+                        </button>
+                      </Popconfirm>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              {moderationMessages.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+                  No chat messages yet.
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );
