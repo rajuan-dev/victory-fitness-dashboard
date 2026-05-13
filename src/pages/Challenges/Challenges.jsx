@@ -41,6 +41,10 @@ const createEmptyExercise = () => ({
   name: '',
   details: '',
   notes: '',
+  workout_id: '',
+  workout_title: '',
+  workout_vimeo_id: '',
+  workout_thumbnail: '',
 });
 
 const createEmptySection = () => ({
@@ -77,6 +81,10 @@ const normalizePlanDays = (days = []) =>
                 name: exercise?.name || '',
                 details: exercise?.details || '',
                 notes: exercise?.notes || '',
+                workout_id: exercise?.workout_id || '',
+                workout_title: exercise?.workout_title || '',
+                workout_vimeo_id: exercise?.workout_vimeo_id || '',
+                workout_thumbnail: exercise?.workout_thumbnail || '',
               }))
             : [createEmptyExercise()],
         }))
@@ -95,6 +103,10 @@ const sanitizePlanDaysForSubmit = (days = []) =>
               name: String(exercise.name || '').trim() || `Exercise ${exerciseIndex + 1}`,
               details: String(exercise.details || '').trim() || 'Complete as assigned.',
               notes: String(exercise.notes || '').trim(),
+              workout_id: String(exercise.workout_id || '').trim(),
+              workout_title: String(exercise.workout_title || '').trim(),
+              workout_vimeo_id: String(exercise.workout_vimeo_id || '').trim(),
+              workout_thumbnail: String(exercise.workout_thumbnail || '').trim(),
             }));
 
           const hasSectionContent =
@@ -168,9 +180,11 @@ const Challenges = () => {
   const [thumbnailPreview, setThumbnailPreview] = useState('');
   const [thumbnailFileList, setThumbnailFileList] = useState([]);
   const [planDays, setPlanDays] = useState([]);
-  const [expandedDayKeys, setExpandedDayKeys] = useState([]);
+  const [activeDayIndex, setActiveDayIndex] = useState(null);
   const [planGenerating, setPlanGenerating] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [workoutLibrary, setWorkoutLibrary] = useState([]);
+  const [workoutLibraryLoading, setWorkoutLibraryLoading] = useState(false);
   const [moderationChallenge, setModerationChallenge] = useState(null);
   const [moderationMessages, setModerationMessages] = useState([]);
   const [moderationLoading, setModerationLoading] = useState(false);
@@ -189,6 +203,18 @@ const Challenges = () => {
       setError(loadError.message || 'Failed to load challenges');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadWorkoutLibrary = async () => {
+    setWorkoutLibraryLoading(true);
+    try {
+      const response = await adminApiRequest('/admin/workouts');
+      setWorkoutLibrary(Array.isArray(response?.workouts) ? response.workouts : []);
+    } catch (loadError) {
+      message.error(loadError.message || 'Failed to load workout library');
+    } finally {
+      setWorkoutLibraryLoading(false);
     }
   };
 
@@ -237,7 +263,7 @@ const Challenges = () => {
     setThumbnailPreview('');
     setThumbnailFileList([]);
     setPlanDays([]);
-    setExpandedDayKeys([]);
+    setActiveDayIndex(null);
     const initialValues = {
       category: PLAN_GENERATION_DEFAULTS.category,
       durationDays: PLAN_GENERATION_DEFAULTS.durationDays,
@@ -247,6 +273,7 @@ const Challenges = () => {
     };
     form.setFieldsValue(initialValues);
     applyLiveChallengeSuggestions(initialValues);
+    void loadWorkoutLibrary();
     setIsModalVisible(true);
   };
 
@@ -272,10 +299,11 @@ const Challenges = () => {
       difficulty: challenge.difficulty,
     });
     setPlanDays(normalizePlanDays(challenge.planDays || []));
-    setExpandedDayKeys([challenge.planDays?.[0]?.day_number || 1]);
+    setActiveDayIndex(null);
     setSelectedThumbnail(null);
     setThumbnailPreview(challenge.thumbnail || '');
     setThumbnailFileList([]);
+    void loadWorkoutLibrary();
     setIsModalVisible(true);
   };
 
@@ -310,7 +338,7 @@ const Challenges = () => {
     setPlanDays((current) => {
       const nextDays = [...current, createEmptyDay(current.length + 1)];
       form.setFieldsValue({ durationDays: nextDays.length });
-      setExpandedDayKeys((expanded) => [...new Set([...expanded, nextDays.length])]);
+      setActiveDayIndex(nextDays.length - 1);
       return nextDays;
     });
   };
@@ -321,19 +349,19 @@ const Challenges = () => {
         .filter((_, index) => index !== dayIndex)
         .map((day, index) => ({ ...day, day_number: index + 1, title: day.title || `Day ${index + 1}` }))
     );
-    setExpandedDayKeys((current) =>
-      current
-        .filter((value) => value !== dayIndex + 1)
-        .map((value) => (value > dayIndex + 1 ? value - 1 : value))
-    );
+    setActiveDayIndex((current) => {
+      if (current === null) {
+        return null;
+      }
+      if (current === dayIndex) {
+        return null;
+      }
+      return current > dayIndex ? current - 1 : current;
+    });
   };
 
-  const togglePlanDay = (dayNumber) => {
-    setExpandedDayKeys((current) => (
-      current.includes(dayNumber)
-        ? current.filter((value) => value !== dayNumber)
-        : [...current, dayNumber]
-    ));
+  const openDayEditor = (dayIndex) => {
+    setActiveDayIndex(dayIndex);
   };
 
   const addSection = (dayIndex) => {
@@ -399,6 +427,41 @@ const Challenges = () => {
     }));
   };
 
+  const linkExerciseWorkout = (dayIndex, sectionIndex, exerciseIndex, workoutId) => {
+    const selectedWorkout = workoutLibrary.find((workout) => workout.id === workoutId);
+    updatePlanDay(dayIndex, (day) => ({
+      ...day,
+      sections: day.sections.map((section, index) => (
+        index === sectionIndex
+          ? {
+              ...section,
+              exercises: section.exercises.map((exercise, itemIndex) => {
+                if (itemIndex !== exerciseIndex) {
+                  return exercise;
+                }
+                if (!selectedWorkout) {
+                  return {
+                    ...exercise,
+                    workout_id: '',
+                    workout_title: '',
+                    workout_vimeo_id: '',
+                    workout_thumbnail: '',
+                  };
+                }
+                return {
+                  ...exercise,
+                  workout_id: selectedWorkout.id,
+                  workout_title: selectedWorkout.title,
+                  workout_vimeo_id: selectedWorkout.vimeoId,
+                  workout_thumbnail: selectedWorkout.thumbnail || '',
+                };
+              }),
+            }
+          : section
+      )),
+    }));
+  };
+
   const loadThirtyDayPreset = async () => {
     const values = form.getFieldsValue();
     const requestedDuration = Math.max(Number(values.durationDays || PLAN_GENERATION_DEFAULTS.durationDays), 1);
@@ -429,7 +492,7 @@ const Challenges = () => {
       });
       const generatedPlanDays = normalizePlanDays(response?.planDays || []);
       setPlanDays(generatedPlanDays);
-      setExpandedDayKeys(generatedPlanDays.length > 0 ? [generatedPlanDays[0].day_number] : []);
+      setActiveDayIndex(generatedPlanDays.length > 0 ? 0 : null);
       form.setFieldsValue({
         title: response?.title || payload.title,
         description: response?.description || payload.description,
@@ -540,6 +603,12 @@ const Challenges = () => {
       setSaving(false);
     }
   };
+
+  const activeDay = activeDayIndex !== null ? planDays[activeDayIndex] : null;
+  const workoutSelectOptions = workoutLibrary.map((workout) => ({
+    label: `${workout.title} · Vimeo ${workout.vimeoId}`,
+    value: workout.id,
+  }));
 
   const filteredChallenges = challenges.filter((challenge) => statusFilter === 'ALL' || challenge.status === statusFilter);
 
@@ -747,141 +816,29 @@ const Challenges = () => {
             ) : (
               <div className="space-y-4">
                 {planDays.map((day, dayIndex) => (
-                  <div key={`day-${day.day_number}-${dayIndex}`} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <button
-                      type="button"
-                      onClick={() => togglePlanDay(day.day_number)}
-                      className="flex w-full items-start justify-between gap-3 rounded-2xl px-4 py-4 text-left transition-colors hover:bg-slate-50"
-                    >
+                  <button
+                    key={`day-${day.day_number}-${dayIndex}`}
+                    type="button"
+                    onClick={() => openDayEditor(dayIndex)}
+                    className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-cyan-300 hover:bg-cyan-50/40"
+                  >
+                    <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold uppercase tracking-wide text-cyan-600">Day {day.day_number}</p>
                         <h4 className="mt-1 text-sm font-semibold text-slate-800">{day.title || `Day ${day.day_number}`}</h4>
                         <p className="mt-1 text-xs text-slate-500">
-                          {day.focus || 'Click to view and edit the details for this day.'}
+                          {day.focus || 'Click to open and edit this day.'}
                         </p>
                       </div>
-                      <FiChevronDown
-                        size={18}
-                        className={`mt-1 shrink-0 text-slate-400 transition-transform ${expandedDayKeys.includes(day.day_number) ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-
-                    {expandedDayKeys.includes(day.day_number) ? (
-                      <div className="border-t border-slate-200 px-4 pb-4 pt-4">
-                        <div className="mb-4 flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-600">Day {day.day_number}</p>
-                            <p className="text-xs text-slate-500">Edit the structure for this day.</p>
-                          </div>
-                          <Button danger type="text" onClick={() => removePlanDay(dayIndex)}>
-                            Remove Day
-                          </Button>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <Input
-                            value={day.title}
-                            onChange={(event) => updatePlanDay(dayIndex, (currentDay) => ({ ...currentDay, title: event.target.value }))}
-                            placeholder="Day title"
-                          />
-                          <Input
-                            value={day.focus}
-                            onChange={(event) => updatePlanDay(dayIndex, (currentDay) => ({ ...currentDay, focus: event.target.value }))}
-                            placeholder="Focus"
-                          />
-                        </div>
-
-                        <Input.TextArea
-                          className="mt-3"
-                          rows={2}
-                          value={day.notes}
-                          onChange={(event) => updatePlanDay(dayIndex, (currentDay) => ({ ...currentDay, notes: event.target.value }))}
-                          placeholder="Coaching notes for the day"
-                        />
-
-                        <div className="mt-4 space-y-3">
-                          {day.sections.map((section, sectionIndex) => (
-                            <div key={section.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                              <div className="mb-3 flex items-center justify-between gap-3">
-                                <h4 className="text-sm font-semibold text-slate-800">Section {sectionIndex + 1}</h4>
-                                <Button danger type="text" onClick={() => removeSection(dayIndex, sectionIndex)}>
-                                  Remove Section
-                                </Button>
-                              </div>
-
-                              <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_140px]">
-                                <Input
-                                  value={section.title}
-                                  onChange={(event) => updateSection(dayIndex, sectionIndex, 'title', event.target.value)}
-                                  placeholder="Section title"
-                                />
-                                <InputNumber
-                                  min={0}
-                                  max={240}
-                                  className="w-full"
-                                  value={section.estimated_minutes}
-                                  onChange={(value) => updateSection(dayIndex, sectionIndex, 'estimated_minutes', value)}
-                                  placeholder="Minutes"
-                                />
-                              </div>
-
-                              <Input.TextArea
-                                className="mt-3"
-                                rows={2}
-                                value={section.description}
-                                onChange={(event) => updateSection(dayIndex, sectionIndex, 'description', event.target.value)}
-                                placeholder="Section description"
-                              />
-
-                              <div className="mt-3 space-y-3">
-                                {section.exercises.map((exercise, exerciseIndex) => (
-                                  <div key={exercise.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                                    <div className="mb-2 flex items-center justify-between gap-3">
-                                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Exercise {exerciseIndex + 1}</p>
-                                      <Button danger type="text" onClick={() => removeExercise(dayIndex, sectionIndex, exerciseIndex)}>
-                                        Remove
-                                      </Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                      <Input
-                                        value={exercise.name}
-                                        onChange={(event) => updateExercise(dayIndex, sectionIndex, exerciseIndex, 'name', event.target.value)}
-                                        placeholder="Exercise name"
-                                      />
-                                      <Input
-                                        value={exercise.details}
-                                        onChange={(event) => updateExercise(dayIndex, sectionIndex, exerciseIndex, 'details', event.target.value)}
-                                        placeholder="Sets / reps / time"
-                                      />
-                                    </div>
-                                    <Input.TextArea
-                                      className="mt-3"
-                                      rows={2}
-                                      value={exercise.notes}
-                                      onChange={(event) => updateExercise(dayIndex, sectionIndex, exerciseIndex, 'notes', event.target.value)}
-                                      placeholder="Exercise notes"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-
-                              <div className="mt-3 flex justify-end">
-                                <Button onClick={() => addExercise(dayIndex, sectionIndex)} type="dashed">
-                                  Add Exercise
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="mt-4 flex justify-end">
-                          <Button onClick={() => addSection(dayIndex)} type="dashed">
-                            Add Section
-                          </Button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
+                      <FiEdit size={16} className="mt-1 shrink-0 text-slate-400" />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-medium text-slate-500">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1">{day.sections.length} sections</span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        {day.sections.reduce((total, section) => total + section.exercises.length, 0)} exercises
+                      </span>
+                    </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -981,6 +938,151 @@ const Challenges = () => {
           </div>
         </Form>
       </Drawer>
+
+      <Modal
+        title={<span className="text-slate-800">{activeDay ? `Edit Day ${activeDay.day_number}` : 'Edit Day'}</span>}
+        open={activeDayIndex !== null && Boolean(activeDay)}
+        onCancel={() => setActiveDayIndex(null)}
+        footer={null}
+        width={980}
+        destroyOnHidden
+      >
+        {activeDay ? (
+          <div className="mt-3 max-h-[75vh] overflow-y-auto pr-1">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-600">Day {activeDay.day_number}</p>
+                <p className="text-xs text-slate-500">Update the title, sections, exercises, and linked Vimeo workouts for this day.</p>
+              </div>
+              <Button danger type="text" onClick={() => removePlanDay(activeDayIndex)}>
+                Remove Day
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Input
+                value={activeDay.title}
+                onChange={(event) => updatePlanDay(activeDayIndex, (currentDay) => ({ ...currentDay, title: event.target.value }))}
+                placeholder="Day title"
+              />
+              <Input
+                value={activeDay.focus}
+                onChange={(event) => updatePlanDay(activeDayIndex, (currentDay) => ({ ...currentDay, focus: event.target.value }))}
+                placeholder="Focus"
+              />
+            </div>
+
+            <Input.TextArea
+              className="mt-3"
+              rows={3}
+              value={activeDay.notes}
+              onChange={(event) => updatePlanDay(activeDayIndex, (currentDay) => ({ ...currentDay, notes: event.target.value }))}
+              placeholder="Coaching notes for the day"
+            />
+
+            <div className="mt-4 space-y-3">
+              {activeDay.sections.map((section, sectionIndex) => (
+                <div key={section.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h4 className="text-sm font-semibold text-slate-800">Section {sectionIndex + 1}</h4>
+                    <Button danger type="text" onClick={() => removeSection(activeDayIndex, sectionIndex)}>
+                      Remove Section
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_140px]">
+                    <Input
+                      value={section.title}
+                      onChange={(event) => updateSection(activeDayIndex, sectionIndex, 'title', event.target.value)}
+                      placeholder="Section title"
+                    />
+                    <InputNumber
+                      min={0}
+                      max={240}
+                      className="w-full"
+                      value={section.estimated_minutes}
+                      onChange={(value) => updateSection(activeDayIndex, sectionIndex, 'estimated_minutes', value)}
+                      placeholder="Minutes"
+                    />
+                  </div>
+
+                  <Input.TextArea
+                    className="mt-3"
+                    rows={2}
+                    value={section.description}
+                    onChange={(event) => updateSection(activeDayIndex, sectionIndex, 'description', event.target.value)}
+                    placeholder="Section description"
+                  />
+
+                  <div className="mt-3 space-y-3">
+                    {section.exercises.map((exercise, exerciseIndex) => (
+                      <div key={exercise.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Exercise {exerciseIndex + 1}</p>
+                          <Button danger type="text" onClick={() => removeExercise(activeDayIndex, sectionIndex, exerciseIndex)}>
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <Input
+                            value={exercise.name}
+                            onChange={(event) => updateExercise(activeDayIndex, sectionIndex, exerciseIndex, 'name', event.target.value)}
+                            placeholder="Exercise name"
+                          />
+                          <Input
+                            value={exercise.details}
+                            onChange={(event) => updateExercise(activeDayIndex, sectionIndex, exerciseIndex, 'details', event.target.value)}
+                            placeholder="Sets / reps / time"
+                          />
+                        </div>
+                        <Input.TextArea
+                          className="mt-3"
+                          rows={2}
+                          value={exercise.notes}
+                          onChange={(event) => updateExercise(activeDayIndex, sectionIndex, exerciseIndex, 'notes', event.target.value)}
+                          placeholder="Exercise notes"
+                        />
+                        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                          <Select
+                            showSearch
+                            allowClear
+                            placeholder={workoutLibraryLoading ? 'Loading Vimeo library...' : 'Attach a Vimeo workout from library'}
+                            loading={workoutLibraryLoading}
+                            value={exercise.workout_id || undefined}
+                            options={workoutSelectOptions}
+                            optionFilterProp="label"
+                            onChange={(value) => linkExerciseWorkout(activeDayIndex, sectionIndex, exerciseIndex, value || '')}
+                          />
+                          {exercise.workout_vimeo_id ? (
+                            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700">
+                              Linked: Vimeo {exercise.workout_vimeo_id}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 flex justify-end">
+                    <Button onClick={() => addExercise(activeDayIndex, sectionIndex)} type="dashed">
+                      Add Exercise
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex justify-between gap-3">
+              <Button onClick={() => addSection(activeDayIndex)} type="dashed">
+                Add Section
+              </Button>
+              <Button type="primary" onClick={() => setActiveDayIndex(null)} className="bg-blue-600 hover:bg-blue-500">
+                Done
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
 
       <Modal
         title={<span className="text-slate-800">Challenge Chat Moderation</span>}
