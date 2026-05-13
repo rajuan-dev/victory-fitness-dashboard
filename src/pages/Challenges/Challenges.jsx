@@ -1,10 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin } from 'antd';
+import { Modal, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin, Upload } from 'antd';
 import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
 import { FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
+import { InboxOutlined } from '@ant-design/icons';
 import { adminApiRequest } from '../../../services/auth.service';
 
 const defaultThumbnail = 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=300&auto=format&fit=crop';
+const challengeCategories = ['Strength', 'Cardio', 'Mindfulness', 'Nutrition', 'Family'];
+const { Dragger } = Upload;
+
+const toBase64Payload = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = typeof reader.result === 'string' ? reader.result : '';
+    const imageBase64 = result.includes(',') ? result.split(',')[1] : '';
+    resolve({
+      image_base64: imageBase64,
+      mime_type: file.type || 'image/jpeg',
+      file_name: file.name || 'challenge-thumbnail.jpg',
+      preview: result,
+    });
+  };
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
 
 const Challenges = () => {
   const [challenges, setChallenges] = useState([]);
@@ -14,6 +33,9 @@ const Challenges = () => {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState('');
   const [error, setError] = useState('');
+  const [selectedThumbnail, setSelectedThumbnail] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState('');
+  const [thumbnailFileList, setThumbnailFileList] = useState([]);
   const [form] = Form.useForm();
 
   const loadChallenges = async () => {
@@ -36,13 +58,15 @@ const Challenges = () => {
   const handleAdd = () => {
     setEditingChallenge(null);
     form.resetFields();
+    setSelectedThumbnail(null);
+    setThumbnailPreview('');
+    setThumbnailFileList([]);
     form.setFieldsValue({
       category: 'Strength',
       durationDays: 7,
       points: 100,
       difficulty: 'BEGINNER',
       status: 'ACTIVE',
-      thumbnail: defaultThumbnail,
     });
     setIsModalVisible(true);
   };
@@ -57,9 +81,34 @@ const Challenges = () => {
       points: challenge.points,
       difficulty: challenge.difficulty,
       status: challenge.status,
-      thumbnail: challenge.thumbnail || defaultThumbnail,
     });
+    setSelectedThumbnail(null);
+    setThumbnailPreview(challenge.thumbnail || '');
+    setThumbnailFileList([]);
     setIsModalVisible(true);
+  };
+
+  const handleThumbnailChange = async ({ fileList }) => {
+    setThumbnailFileList(fileList.slice(-1));
+    const file = fileList[fileList.length - 1]?.originFileObj;
+    if (!file) {
+      setSelectedThumbnail(null);
+      return;
+    }
+
+    try {
+      const payload = await toBase64Payload(file);
+      setSelectedThumbnail(payload);
+      setThumbnailPreview(payload.preview);
+    } catch {
+      message.error('Failed to read thumbnail image');
+    }
+  };
+
+  const handleThumbnailRemove = () => {
+    setSelectedThumbnail(null);
+    setThumbnailFileList([]);
+    setThumbnailPreview(editingChallenge?.thumbnail || '');
   };
 
   const handleDelete = async (id) => {
@@ -78,17 +127,22 @@ const Challenges = () => {
   const handleSubmit = async (values) => {
     setSaving(true);
     try {
+      const payload = {
+        ...values,
+        thumbnail: thumbnailPreview || editingChallenge?.thumbnail || '',
+        ...(selectedThumbnail || {}),
+      };
       if (editingChallenge) {
         const updated = await adminApiRequest(`/admin/challenges/${editingChallenge.id}`, {
           method: 'PATCH',
-          body: values,
+          body: payload,
         });
         setChallenges((prev) => prev.map((challenge) => (challenge.id === editingChallenge.id ? updated : challenge)));
         message.success('Challenge updated successfully');
       } else {
         const created = await adminApiRequest('/admin/challenges', {
           method: 'POST',
-          body: values,
+          body: payload,
         });
         setChallenges((prev) => [created, ...prev]);
         message.success('Challenge added successfully');
@@ -214,9 +268,15 @@ const Challenges = () => {
           <Form.Item
             name="category"
             label={<span className="font-medium text-slate-700">Category</span>}
-            rules={[{ required: true, message: 'Please input the category' }]}
+            rules={[{ required: true, message: 'Please select a category' }]}
           >
-            <Input placeholder="e.g. Strength" className="py-2" />
+            <Select placeholder="Select category" size="large">
+              {challengeCategories.map((category) => (
+                <Select.Option key={category} value={category}>
+                  {category}
+                </Select.Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -264,11 +324,30 @@ const Challenges = () => {
             </Form.Item>
           </div>
 
-          <Form.Item
-            name="thumbnail"
-            label={<span className="font-medium text-slate-700">Thumbnail URL</span>}
-          >
-            <Input placeholder="https://..." className="py-2" />
+          <Form.Item label={<span className="font-medium text-slate-700">Thumbnail Upload</span>}>
+            <Dragger
+              accept="image/png,image/jpeg,image/webp"
+              beforeUpload={() => false}
+              multiple={false}
+              maxCount={1}
+              fileList={thumbnailFileList}
+              onChange={handleThumbnailChange}
+              onRemove={handleThumbnailRemove}
+              className="bg-slate-50"
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined />
+              </p>
+              <p className="ant-upload-text">Click or drag thumbnail image here</p>
+              <p className="ant-upload-hint">Supports PNG, JPG, and WEBP.</p>
+            </Dragger>
+            {thumbnailPreview ? (
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <img src={thumbnailPreview} alt="Challenge thumbnail preview" className="h-40 w-full object-cover" />
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-slate-500">No thumbnail selected. A default image will be used if you save without uploading one.</p>
+            )}
           </Form.Item>
 
           <div className="flex justify-end gap-3 mt-8">
