@@ -63,7 +63,7 @@ function ChangePass() {
   };
 
   return (
-    <div className="bg-white w-full max-w-xl mx-auto px-4 sm:px-6 md:px-8 pt-8 py-5 rounded-md border border-gray-200 shadow-sm">
+    <div className="bg-white w-full px-4 sm:px-6 md:px-8 pt-8 py-5 rounded-md border border-gray-200 shadow-sm">
       <p className="text-[#111827] text-center font-bold text-xl sm:text-2xl mb-5">
         Change Password
       </p>

@@ -1,4 +1,4 @@
-import { FaChevronDown, FaUsers, FaDumbbell, FaTrophy, FaVideo } from "react-icons/fa";
+import { FaChevronDown, FaUsers, FaDumbbell, FaTrophy, FaVideo, FaBolt, FaFlagCheckered } from "react-icons/fa";
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import RecentUsers from "./RecentUsers";
@@ -7,8 +7,8 @@ import { adminApiRequest } from "../../../services/auth.service";
 
 function StatsSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-2 md:gap-5 sm:grid-cols-2 lg:grid-cols-4">
-      {[...Array(4)].map((_, index) => (
+    <div className="grid grid-cols-1 gap-2 md:gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {[...Array(6)].map((_, index) => (
         <div
           key={index}
           className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-6 shadow-md animate-pulse"
@@ -76,6 +76,8 @@ function DashboardPage() {
     totalUsers: 0,
     workoutsThisWeek: 0,
     challengeCompletions: 0,
+    activeChallenges: 0,
+    readyChallenges: 0,
     vimeoApiStatus: "MISSING",
     userChart: [],
     recentUsers: [],
@@ -114,6 +116,8 @@ function DashboardPage() {
     totalUsers = 0,
     workoutsThisWeek = 0,
     challengeCompletions = 0,
+    activeChallenges = 0,
+    readyChallenges = 0,
     vimeoApiStatus = "MISSING",
     userChart = [],
     recentUsers = [],
@@ -147,6 +151,20 @@ function DashboardPage() {
       bgGradient: "from-orange-50 to-red-50",
     },
     {
+      value: activeChallenges,
+      label: "Active Challenges",
+      icon: FaBolt,
+      gradient: "from-cyan-500 to-sky-600",
+      bgGradient: "from-cyan-50 to-sky-50",
+    },
+    {
+      value: readyChallenges,
+      label: "Ready Challenges",
+      icon: FaFlagCheckered,
+      gradient: "from-amber-500 to-yellow-600",
+      bgGradient: "from-amber-50 to-yellow-50",
+    },
+    {
       value: vimeoApiStatus,
       label: "Vimeo API Status",
       icon: FaVideo,
@@ -174,7 +192,7 @@ function DashboardPage() {
       {isLoadingOverview ? (
         <StatsSkeleton />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-5">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
