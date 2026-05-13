@@ -83,6 +83,59 @@ const normalizePlanDays = (days = []) =>
       : [createEmptySection()],
   }));
 
+const sanitizePlanDaysForSubmit = (days = []) =>
+  normalizePlanDays(days)
+    .map((day, dayIndex) => {
+      const sections = (day.sections || [])
+        .map((section, sectionIndex) => {
+          const exercises = (section.exercises || [])
+            .filter((exercise) => String(exercise?.name || '').trim() || String(exercise?.details || '').trim() || String(exercise?.notes || '').trim())
+            .map((exercise, exerciseIndex) => ({
+              id: exercise.id || createId(`exercise-${dayIndex + 1}-${sectionIndex + 1}-${exerciseIndex + 1}`),
+              name: String(exercise.name || '').trim() || `Exercise ${exerciseIndex + 1}`,
+              details: String(exercise.details || '').trim() || 'Complete as assigned.',
+              notes: String(exercise.notes || '').trim(),
+            }));
+
+          const hasSectionContent =
+            String(section?.title || '').trim() ||
+            String(section?.description || '').trim() ||
+            exercises.length > 0;
+
+          if (!hasSectionContent) {
+            return null;
+          }
+
+          return {
+            id: section.id || createId(`section-${dayIndex + 1}-${sectionIndex + 1}`),
+            title: String(section.title || '').trim() || `Section ${sectionIndex + 1}`,
+            description: String(section.description || '').trim(),
+            estimated_minutes: Number(section.estimated_minutes || 15),
+            exercises,
+          };
+        })
+        .filter(Boolean);
+
+      const hasDayContent =
+        String(day?.title || '').trim() ||
+        String(day?.focus || '').trim() ||
+        String(day?.notes || '').trim() ||
+        sections.length > 0;
+
+      if (!hasDayContent) {
+        return null;
+      }
+
+      return {
+        day_number: dayIndex + 1,
+        title: String(day.title || '').trim() || `Day ${dayIndex + 1}`,
+        focus: String(day.focus || '').trim() || 'Challenge work',
+        notes: String(day.notes || '').trim(),
+        sections,
+      };
+    })
+    .filter(Boolean);
+
 const categoryThemeByName = {
   Strength: { noun: 'Reset', focus: 'strength, movement quality, and consistency' },
   Cardio: { noun: 'Builder', focus: 'endurance, pacing, and cardio consistency' },
@@ -451,7 +504,7 @@ const Challenges = () => {
   const handleSubmit = async (values) => {
     setSaving(true);
     try {
-      const normalizedPlanDays = normalizePlanDays(planDays);
+      const normalizedPlanDays = sanitizePlanDaysForSubmit(planDays);
       const payload = {
         ...values,
         durationDays: normalizedPlanDays.length > 0 ? normalizedPlanDays.length : values.durationDays,
@@ -611,7 +664,7 @@ const Challenges = () => {
         title={<span className="text-slate-800">{editingChallenge ? 'Edit Challenge' : 'Add New Challenge'}</span>}
         open={isModalVisible}
         onClose={() => setIsModalVisible(false)}
-        destroyOnClose
+        destroyOnHidden
         placement="right"
         width={920}
         className="workout-modal"
@@ -905,13 +958,7 @@ const Challenges = () => {
               <p className="ant-upload-text">Click or drag thumbnail image here</p>
               <p className="ant-upload-hint">Supports PNG, JPG, and WEBP.</p>
             </Dragger>
-            {thumbnailPreview ? (
-              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                <img src={thumbnailPreview} alt="Challenge thumbnail preview" className="h-40 w-full object-cover" />
-              </div>
-            ) : (
-              <p className="mt-3 text-xs text-slate-500">No thumbnail selected yet.</p>
-            )}
+            <p className="mt-3 text-xs text-slate-500">No thumbnail selected yet.</p>
           </Form.Item>
 
           <div className="flex justify-end gap-3 mt-8">
@@ -931,7 +978,7 @@ const Challenges = () => {
         onCancel={() => setModerationChallenge(null)}
         footer={null}
         width={860}
-        destroyOnClose
+        destroyOnHidden
       >
         <div className="mt-2">
           <div className="mb-4">
