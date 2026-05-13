@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin, Upload } from 'antd';
 import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
 import { FaComments, FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
@@ -9,54 +9,11 @@ const defaultThumbnail = 'https://images.unsplash.com/photo-1544367567-0f2fcb009
 const challengeCategories = ['Strength', 'Cardio', 'Mindfulness', 'Nutrition', 'Family'];
 const { Dragger } = Upload;
 const challengeStatusFilters = ['ALL', 'ACTIVE', 'UPCOMING', 'DRAFT', 'ARCHIVED'];
-const THIRTY_DAY_PLAN_PRESET = {
-  title: '30-Day Strength & Consistency Reset',
-  description: 'A guided 30-day challenge designed to improve consistency, movement quality, recovery, and overall strength with realistic daily actions.',
-  planText: `WEEK 1 - FOUNDATION
-Day 1: Full-body bodyweight session. Focus on form, tempo, and breathing.
-Day 2: 30-minute brisk walk and 10 minutes of mobility.
-Day 3: Lower-body strength focus with squats, glute bridges, and lunges.
-Day 4: Recovery day. Stretching, hydration target, and sleep focus.
-Day 5: Upper-body strength focus with push-ups, rows, and planks.
-Day 6: Low-impact cardio for 25-35 minutes.
-Day 7: Weekly reset. Progress check-in, meal prep, and light movement.
-
-WEEK 2 - CONSISTENCY
-Day 8: Full-body strength circuit with controlled reps.
-Day 9: Core and posture session plus 8,000+ steps.
-Day 10: Lower-body progression. Add reps or time under tension.
-Day 11: Recovery walk and mobility flow.
-Day 12: Upper-body progression. Add one extra round.
-Day 13: Cardio endurance session for 30 minutes.
-Day 14: Weekly reset. Reflect on wins, friction points, and energy.
-
-WEEK 3 - PROGRESSION
-Day 15: Full-body strength with shorter rest periods.
-Day 16: Active recovery and deep stretching.
-Day 17: Lower-body challenge with unilateral work and core finisher.
-Day 18: Cardio intervals. Short bursts with controlled recovery.
-Day 19: Upper-body strength and stability work.
-Day 20: Long walk or easy cardio session. Stay in a sustainable zone.
-Day 21: Weekly reset. Review progress, update goals, prepare next week.
-
-WEEK 4 - FINISH STRONG
-Day 22: Full-body power and control session.
-Day 23: Recovery mobility, hydration, and sleep optimization day.
-Day 24: Lower-body strength challenge. Match or beat prior output.
-Day 25: Cardio intervals or tempo session.
-Day 26: Upper-body challenge. Focus on clean reps and consistency.
-Day 27: Active recovery plus mindset reset.
-Day 28: Full-body finisher workout with moderate intensity.
-Day 29: Light movement, stretch, and personal reflection.
-Day 30: Final challenge day. Complete a full-body test session and share your 30-day results.
-
-COACHING NOTES
-- Aim for consistency over perfection.
-- Prioritize sleep, hydration, and protein intake.
-- If soreness is high, reduce intensity but keep the habit alive.
-- Encourage users to share progress daily in challenge chat and use @Coach for support.`,
+const PLAN_GENERATION_DEFAULTS = {
+  title: 'Strength & Consistency Challenge',
+  description: 'A guided challenge designed to build consistency, movement quality, recovery, and overall fitness with realistic daily actions.',
   category: 'Strength',
-  durationDays: 30,
+  durationDays: 7,
   points: 500,
   difficulty: 'INTERMEDIATE',
   status: 'ACTIVE',
@@ -127,6 +84,26 @@ const normalizePlanDays = (days = []) =>
       : [createEmptySection()],
   }));
 
+const categoryThemeByName = {
+  Strength: { noun: 'Reset', focus: 'strength, movement quality, and consistency' },
+  Cardio: { noun: 'Builder', focus: 'endurance, pacing, and cardio consistency' },
+  Mindfulness: { noun: 'Flow', focus: 'mobility, recovery, and mindful daily practice' },
+  Nutrition: { noun: 'Nutrition Reset', focus: 'meal consistency, energy, and nutrition habits' },
+  Family: { noun: 'Family Fitness Plan', focus: 'shared movement, accountability, and family-friendly activity' },
+};
+
+const suggestChallengeTitle = ({ durationDays, category }) => {
+  const safeDuration = Math.max(Number(durationDays || PLAN_GENERATION_DEFAULTS.durationDays), 1);
+  const theme = categoryThemeByName[category] || categoryThemeByName.Strength;
+  return `${safeDuration}-Day ${category} ${theme.noun}`;
+};
+
+const suggestChallengeDescription = ({ durationDays, category, difficulty }) => {
+  const safeDuration = Math.max(Number(durationDays || PLAN_GENERATION_DEFAULTS.durationDays), 1);
+  const theme = categoryThemeByName[category] || categoryThemeByName.Strength;
+  return `A ${safeDuration}-day ${difficulty.toLowerCase()} ${category.toLowerCase()} challenge designed to improve ${theme.focus} with realistic day-by-day actions.`;
+};
+
 const Challenges = () => {
   const [challenges, setChallenges] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -145,6 +122,8 @@ const Challenges = () => {
   const [moderationMessages, setModerationMessages] = useState([]);
   const [moderationLoading, setModerationLoading] = useState(false);
   const [moderationDeletingId, setModerationDeletingId] = useState('');
+  const lastSuggestedTitleRef = useRef('');
+  const lastSuggestedDescriptionRef = useRef('');
   const [form] = Form.useForm();
 
   const loadChallenges = async () => {
@@ -164,6 +143,40 @@ const Challenges = () => {
     loadChallenges();
   }, []);
 
+  const applyLiveChallengeSuggestions = (allValues) => {
+    const selectedCategory = allValues.category || PLAN_GENERATION_DEFAULTS.category;
+    const selectedDifficulty = allValues.difficulty || PLAN_GENERATION_DEFAULTS.difficulty;
+    const requestedDuration = Math.max(Number(allValues.durationDays || PLAN_GENERATION_DEFAULTS.durationDays), 1);
+    const nextSuggestedTitle = suggestChallengeTitle({
+      durationDays: requestedDuration,
+      category: selectedCategory,
+    });
+    const nextSuggestedDescription = suggestChallengeDescription({
+      durationDays: requestedDuration,
+      category: selectedCategory,
+      difficulty: selectedDifficulty,
+    });
+
+    const currentTitle = String(allValues.title || '');
+    const currentDescription = String(allValues.description || '');
+    const nextFields = {};
+
+    if (!currentTitle.trim() || currentTitle === lastSuggestedTitleRef.current) {
+      nextFields.title = nextSuggestedTitle;
+    }
+
+    if (!currentDescription.trim() || currentDescription === lastSuggestedDescriptionRef.current) {
+      nextFields.description = nextSuggestedDescription;
+    }
+
+    lastSuggestedTitleRef.current = nextSuggestedTitle;
+    lastSuggestedDescriptionRef.current = nextSuggestedDescription;
+
+    if (Object.keys(nextFields).length > 0) {
+      form.setFieldsValue(nextFields);
+    }
+  };
+
   const handleAdd = () => {
     setEditingChallenge(null);
     form.resetFields();
@@ -171,19 +184,21 @@ const Challenges = () => {
     setThumbnailPreview('');
     setThumbnailFileList([]);
     setPlanDays([]);
-    form.setFieldsValue({
-      category: 'Strength',
-      durationDays: 7,
+    const initialValues = {
+      category: PLAN_GENERATION_DEFAULTS.category,
+      durationDays: PLAN_GENERATION_DEFAULTS.durationDays,
       points: 100,
       difficulty: 'BEGINNER',
-      status: 'ACTIVE',
-    });
+      status: PLAN_GENERATION_DEFAULTS.status,
+    };
+    form.setFieldsValue(initialValues);
+    applyLiveChallengeSuggestions(initialValues);
     setIsModalVisible(true);
   };
 
   const handleEdit = (challenge) => {
     setEditingChallenge(challenge);
-    form.setFieldsValue({
+    const editValues = {
       title: challenge.title,
       description: challenge.description,
       category: challenge.category,
@@ -191,6 +206,16 @@ const Challenges = () => {
       points: challenge.points,
       difficulty: challenge.difficulty,
       status: challenge.status,
+    };
+    form.setFieldsValue(editValues);
+    lastSuggestedTitleRef.current = suggestChallengeTitle({
+      durationDays: challenge.durationDays,
+      category: challenge.category,
+    });
+    lastSuggestedDescriptionRef.current = suggestChallengeDescription({
+      durationDays: challenge.durationDays,
+      category: challenge.category,
+      difficulty: challenge.difficulty,
     });
     setPlanDays(normalizePlanDays(challenge.planDays || []));
     setSelectedThumbnail(null);
@@ -307,12 +332,24 @@ const Challenges = () => {
 
   const loadThirtyDayPreset = async () => {
     const values = form.getFieldsValue();
+    const requestedDuration = Math.max(Number(values.durationDays || PLAN_GENERATION_DEFAULTS.durationDays), 1);
+    const selectedCategory = values.category || PLAN_GENERATION_DEFAULTS.category;
+    const selectedDifficulty = values.difficulty || PLAN_GENERATION_DEFAULTS.difficulty;
+    const generatedTitle = suggestChallengeTitle({
+      durationDays: requestedDuration,
+      category: selectedCategory,
+    });
+    const generatedDescription = suggestChallengeDescription({
+      durationDays: requestedDuration,
+      category: selectedCategory,
+      difficulty: selectedDifficulty,
+    });
     const payload = {
-      title: values.title || THIRTY_DAY_PLAN_PRESET.title,
-      description: values.description || THIRTY_DAY_PLAN_PRESET.description,
-      category: values.category || THIRTY_DAY_PLAN_PRESET.category,
-      difficulty: values.difficulty || THIRTY_DAY_PLAN_PRESET.difficulty,
-      durationDays: 30,
+      title: values.title || generatedTitle,
+      description: values.description || generatedDescription,
+      category: selectedCategory,
+      difficulty: selectedDifficulty,
+      durationDays: requestedDuration,
     };
 
     setPlanGenerating(true);
@@ -327,10 +364,10 @@ const Challenges = () => {
         title: response?.title || payload.title,
         description: response?.description || payload.description,
         durationDays: response?.durationDays || generatedPlanDays.length || payload.durationDays,
-        category: payload.category,
-        difficulty: payload.difficulty,
+        category: selectedCategory,
+        difficulty: selectedDifficulty,
       });
-      message.success('30-day plan generated');
+      message.success(`${response?.durationDays || generatedPlanDays.length || requestedDuration}-day plan generated`);
     } catch (loadError) {
       message.error(loadError.message || 'Failed to generate challenge plan');
     } finally {
@@ -559,6 +596,11 @@ const Challenges = () => {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
+          onValuesChange={(changedValues, allValues) => {
+            if (changedValues.category !== undefined || changedValues.durationDays !== undefined || changedValues.difficulty !== undefined) {
+              applyLiveChallengeSuggestions(allValues);
+            }
+          }}
           className="mt-4"
         >
           <Form.Item
@@ -566,7 +608,7 @@ const Challenges = () => {
             label={<span className="font-medium text-slate-700">Challenge Title</span>}
             rules={[{ required: true, message: 'Please input the title' }]}
           >
-            <Input placeholder="e.g. 30-Day Shred" className="py-2" />
+            <Input placeholder="e.g. Summer Strength Reset" className="py-2" />
           </Form.Item>
 
           <Form.Item
@@ -579,7 +621,7 @@ const Challenges = () => {
 
           <div className="mb-4 flex justify-end">
             <Button onClick={loadThirtyDayPreset} type="default" loading={planGenerating}>
-              Generate 30-Day Plan
+              Generate Plan
             </Button>
           </div>
 
@@ -596,7 +638,7 @@ const Challenges = () => {
 
             {planDays.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
-                No plan days yet. Generate a 30-day plan or add days manually.
+                No plan days yet. Generate a plan for the selected duration or add days manually.
               </div>
             ) : (
               <div className="space-y-4">
