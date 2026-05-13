@@ -505,13 +505,18 @@ const Challenges = () => {
     setSaving(true);
     try {
       const normalizedPlanDays = sanitizePlanDaysForSubmit(planDays);
+      const nextThumbnail = selectedThumbnail
+        ? (editingChallenge?.thumbnail || '')
+        : (thumbnailPreview || editingChallenge?.thumbnail || '');
       const payload = {
         ...values,
         durationDays: normalizedPlanDays.length > 0 ? normalizedPlanDays.length : values.durationDays,
         planDays: normalizedPlanDays,
         planText: normalizedPlanDays.length > 0 ? '' : (editingChallenge?.planText || values.planText || ''),
-        thumbnail: thumbnailPreview || editingChallenge?.thumbnail || '',
-        ...(selectedThumbnail || {}),
+        thumbnail: nextThumbnail,
+        image_base64: selectedThumbnail?.image_base64 || null,
+        mime_type: selectedThumbnail?.mime_type || 'image/jpeg',
+        file_name: selectedThumbnail?.file_name || null,
       };
       if (editingChallenge) {
         const updated = await adminApiRequest(`/admin/challenges/${editingChallenge.id}`, {
@@ -946,7 +951,6 @@ const Challenges = () => {
               accept="image/png,image/jpeg,image/webp"
               beforeUpload={() => false}
               multiple={false}
-              maxCount={1}
               fileList={thumbnailFileList}
               onChange={handleThumbnailChange}
               onRemove={handleThumbnailRemove}
@@ -956,7 +960,7 @@ const Challenges = () => {
                 <InboxOutlined />
               </p>
               <p className="ant-upload-text">Click or drag thumbnail image here</p>
-              <p className="ant-upload-hint">Supports PNG, JPG, and WEBP.</p>
+              <p className="ant-upload-hint">Supports PNG, JPG, and WEBP. Adding a new image replaces the current one.</p>
             </Dragger>
             {thumbnailPreview ? (
               <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
