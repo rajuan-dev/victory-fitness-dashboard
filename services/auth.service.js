@@ -1,7 +1,7 @@
 import { decodeAuthToken } from "../utils/decode-access-token";
 import { getFromLocalStorage, setToLocalStorage } from "../utils/local-storage";
 
-const API_URL = (import.meta.env.VITE_API_URL || "https://victory-fitness-backend.vercel.app").replace(/\/$/, "");
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
 let sessionBootstrapPromise = null;
 
 // Store user info in localStorage
