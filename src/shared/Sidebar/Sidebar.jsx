@@ -5,7 +5,7 @@ import { LuUsers } from "react-icons/lu";
 import { IoMdSettings } from "react-icons/io";
 import { IoCloseSharp, IoLogOutOutline } from "react-icons/io5";
 import { MdCardMembership, MdOutlineGroups } from "react-icons/md";
-import { FaDumbbell, FaTrophy, FaGraduationCap, FaUsers } from "react-icons/fa";
+import { FaDumbbell, FaTrophy, FaGraduationCap, FaUsers, FaFileAlt, FaHeadset } from "react-icons/fa";
 import { clearUserInfo } from "../../../services/auth.service";
 
 
@@ -224,6 +224,42 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
               />
               <p className="text-xs sm:text-sm font-semibold">Community</p>
               {isActive("/community") && (
+                <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+              )}
+            </li>
+          </Link>
+
+          <Link to="/applications" onClick={handleLinkClick}>
+            <li
+              className={`group flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-in-out list-none
+                ${isActive("/applications")
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl shadow-lg shadow-blue-500/30 scale-[1.02]"
+                  : "text-slate-700 hover:bg-white/70 hover:shadow-md px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl hover:scale-[1.01]"
+                }`}
+            >
+              <FaFileAlt
+                className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${isActive("/applications") ? "" : "group-hover:scale-110"}`}
+              />
+              <p className="text-xs sm:text-sm font-semibold">Applications</p>
+              {isActive("/applications") && (
+                <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+              )}
+            </li>
+          </Link>
+
+          <Link to="/support-inbox" onClick={handleLinkClick}>
+            <li
+              className={`group flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-in-out list-none
+                ${isActive("/support-inbox")
+                  ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl shadow-lg shadow-blue-500/30 scale-[1.02]"
+                  : "text-slate-700 hover:bg-white/70 hover:shadow-md px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl hover:scale-[1.01]"
+                }`}
+            >
+              <FaHeadset
+                className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${isActive("/support-inbox") ? "" : "group-hover:scale-110"}`}
+              />
+              <p className="text-xs sm:text-sm font-semibold">Help & Support</p>
+              {isActive("/support-inbox") && (
                 <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
               )}
             </li>

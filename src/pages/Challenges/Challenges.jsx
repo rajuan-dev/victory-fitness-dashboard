@@ -818,8 +818,8 @@ const Challenges = () => {
             </div>
           )})}
           {filteredChallenges.length === 0 ? (
-            <div className="col-span-full rounded-2xl border border-dashed border-slate-600 bg-slate-900/40 px-4 py-12 text-center text-sm text-slate-400">
-              No challenges found for the selected status.
+            <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-100 px-4 py-12 text-center text-sm font-medium text-slate-600">
+              {challenges.length === 0 ? 'No challenges added yet.' : 'Challenges not found.'}
             </div>
           ) : null}
         </div>

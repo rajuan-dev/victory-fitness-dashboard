@@ -21,6 +21,8 @@ import Challenges from "../pages/Challenges/Challenges";
 import Masterclasses from "../pages/Masterclasses/Masterclasses";
 import Community from "../pages/Community/Community";
 import AllSubscribers from "../pages/Subscribers/AllSubscribers";
+import Applications from "../pages/Applications/Applications";
+import SupportInbox from "../pages/SupportInbox/SupportInbox";
 
 const router = createBrowserRouter([
   {
@@ -75,6 +77,14 @@ const router = createBrowserRouter([
       {
         path: "/community",
         element: <Community />,
+      },
+      {
+        path: "/applications",
+        element: <Applications />,
+      },
+      {
+        path: "/support-inbox",
+        element: <SupportInbox />,
       },
 
       // settings

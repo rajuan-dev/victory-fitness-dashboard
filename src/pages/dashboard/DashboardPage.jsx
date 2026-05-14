@@ -173,6 +173,17 @@ function DashboardPage() {
     },
   ];
 
+  const formatStatValue = (stat) => {
+    const isChallengeCard =
+      stat.label === "Active Challenges" || stat.label === "Ready Challenges";
+
+    if (isChallengeCard && Number(stat.value || 0) === 0) {
+      return "No challenges found";
+    }
+
+    return stat.value;
+  };
+
   return (
     <div className="flex flex-col space-y-6 p-4 md:p-6">
       {/* Welcome Section */}
@@ -210,9 +221,11 @@ function DashboardPage() {
                       {stat.label}
                     </p>
                     <p
-                      className={`text-3xl md:text-4xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent`}
+                      className={`font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent ${
+                        String(formatStatValue(stat)).length > 6 ? "text-lg md:text-xl leading-snug" : "text-3xl md:text-4xl"
+                      }`}
                     >
-                      {stat.value}
+                      {formatStatValue(stat)}
                     </p>
                   </div>
                   <div
