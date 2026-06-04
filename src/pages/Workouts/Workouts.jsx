@@ -9,6 +9,8 @@ import {
   syncAdminWorkouts,
   updateAdminWorkout,
 } from "../../../services/admin-workouts.service";
+import ThumbnailUploadField from "../../components/dashboard/ThumbnailUploadField";
+import { toBase64Payload } from "../../utils/imageUpload";
 
 const DEFAULT_THUMBNAIL =
   "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=300&auto=format&fit=crop";
@@ -40,6 +42,10 @@ const Workouts = () => {
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [previewWorkout, setPreviewWorkout] = useState(null);
   const [error, setError] = useState("");
+  const [selectedThumbnail, setSelectedThumbnail] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
+  const [thumbnailFileList, setThumbnailFileList] = useState([]);
+  const [thumbnailCleared, setThumbnailCleared] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -90,8 +96,11 @@ const Workouts = () => {
     form.resetFields();
     form.setFieldsValue({
       visibility: "Published",
-      thumbnail: DEFAULT_THUMBNAIL,
     });
+    setSelectedThumbnail(null);
+    setThumbnailPreview("");
+    setThumbnailFileList([]);
+    setThumbnailCleared(false);
     setIsModalVisible(true);
   };
 
@@ -99,9 +108,47 @@ const Workouts = () => {
     setEditingWorkout(workout);
     form.setFieldsValue({
       ...workout,
-      thumbnail: workout.thumbnail || DEFAULT_THUMBNAIL,
     });
+    setSelectedThumbnail(null);
+    setThumbnailPreview(workout.thumbnail || "");
+    setThumbnailFileList([]);
+    setThumbnailCleared(false);
     setIsModalVisible(true);
+  };
+
+  const handleThumbnailChange = async ({ fileList }) => {
+    setThumbnailFileList(fileList.slice(-1));
+    const file = fileList[fileList.length - 1]?.originFileObj;
+    if (!file) {
+      setSelectedThumbnail(null);
+      return;
+    }
+
+    try {
+      const payload = await toBase64Payload(file, "workout-thumbnail.jpg");
+      setSelectedThumbnail(payload);
+      setThumbnailPreview(payload.preview);
+      setThumbnailCleared(false);
+    } catch {
+      message.error("Failed to read thumbnail image");
+    }
+  };
+
+  const handleThumbnailRemove = () => {
+    setSelectedThumbnail(null);
+    setThumbnailFileList([]);
+    setThumbnailPreview("");
+    setThumbnailCleared(true);
+  };
+
+  const closeWorkoutModal = () => {
+    setIsModalVisible(false);
+    setEditingWorkout(null);
+    setSelectedThumbnail(null);
+    setThumbnailPreview("");
+    setThumbnailFileList([]);
+    setThumbnailCleared(false);
+    form.resetFields();
   };
 
   const handlePreview = (workout) => {
@@ -120,12 +167,18 @@ const Workouts = () => {
   };
 
   const handleSubmit = async (values) => {
+    const nextThumbnail = selectedThumbnail
+      ? (editingWorkout?.thumbnail || "")
+      : (thumbnailCleared ? "" : (thumbnailPreview || editingWorkout?.thumbnail || DEFAULT_THUMBNAIL));
     const payload = {
       title: values.title,
       vimeoId: values.vimeoId,
       tag: values.tag,
       visibility: values.visibility,
-      thumbnail: values.thumbnail || DEFAULT_THUMBNAIL,
+      thumbnail: nextThumbnail,
+      image_base64: selectedThumbnail?.image_base64 || null,
+      mime_type: selectedThumbnail?.mime_type || "image/jpeg",
+      file_name: selectedThumbnail?.file_name || null,
     };
 
     try {
@@ -137,9 +190,7 @@ const Workouts = () => {
         await createAdminWorkout(payload);
         message.success("Workout added successfully");
       }
-      setIsModalVisible(false);
-      setEditingWorkout(null);
-      form.resetFields();
+      closeWorkoutModal();
       await reloadWorkouts();
     } catch (requestError) {
       message.error(requestError instanceof Error ? requestError.message : "Failed to save workout");
@@ -344,7 +395,7 @@ const Workouts = () => {
       <Modal
         title={<span className="text-slate-800">{editingWorkout ? "Edit Workout" : "Add New Workout"}</span>}
         open={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
+        onCancel={closeWorkoutModal}
         footer={null}
         destroyOnClose
         className="workout-modal"
@@ -392,15 +443,20 @@ const Workouts = () => {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            name="thumbnail"
-            label={<span className="font-medium text-slate-700">Thumbnail URL</span>}
-          >
-            <Input placeholder="https://..." className="py-2" />
-          </Form.Item>
+          <ThumbnailUploadField
+            eyebrow="Thumbnail"
+            title="Upload the workout cover image"
+            fileList={thumbnailFileList}
+            onChange={handleThumbnailChange}
+            onRemove={handleThumbnailRemove}
+            previewSrc={thumbnailPreview}
+            fallbackPreviewSrc={editingWorkout?.thumbnail && !thumbnailCleared ? editingWorkout.thumbnail : ""}
+            previewAlt="Workout thumbnail preview"
+            className="mt-6"
+          />
 
           <div className="mt-8 flex justify-end gap-3">
-            <Button size="large" onClick={() => setIsModalVisible(false)}>
+            <Button size="large" onClick={closeWorkoutModal}>
               Cancel
             </Button>
             <Button

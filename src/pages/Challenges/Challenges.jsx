@@ -759,30 +759,30 @@ const Challenges = () => {
           <Spin size="large" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 rounded-2xl shadow-xl border border-slate-700/50">
+        <div className="grid grid-cols-1 justify-items-center gap-4 rounded-2xl border border-slate-700/50 p-4 shadow-xl md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredChallenges.map((challenge) => {
             const statusTone = statusToneMap[challenge.status] || statusToneMap.DRAFT;
             return (
-            <div key={challenge.id} className={`bg-[#1e293b] border border-[#334155] border-l-4 ${statusTone.card} rounded-xl p-3 flex items-center gap-4 group hover:bg-[#253245] hover:border-slate-500 transition-all relative`}>
-              <div className="relative w-24 h-16 shrink-0 rounded-md overflow-hidden bg-slate-700">
+            <div key={challenge.id} className="group relative flex w-full max-w-sm items-center gap-4 rounded-xl border border-[#334155] bg-[#1e293b] p-3 transition-all hover:border-slate-500 hover:bg-[#253245]">
+              <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-slate-700">
                 {challenge.thumbnail ? (
-                  <img src={challenge.thumbnail} alt={challenge.title} className="w-full h-full object-cover" />
+                  <img src={challenge.thumbnail} alt={challenge.title} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-slate-800 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
                     No Image
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-orange-500">
+                <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/40 text-orange-500 opacity-0 transition-opacity group-hover:opacity-100">
                   <FaFire className="text-2xl drop-shadow-md" />
                 </div>
               </div>
 
-              <div className="flex flex-col flex-1 min-w-0 pr-6">
-                <h3 className="text-sm font-semibold text-slate-100 truncate mb-1" title={challenge.title}>{challenge.title}</h3>
+              <div className="min-w-0 flex-1 pr-6">
+                <h3 className="mb-1 truncate text-sm font-semibold text-slate-100" title={challenge.title}>{challenge.title}</h3>
                 <p className="text-xs text-slate-400 truncate mb-2 mt-0.5">{challenge.category} · {challenge.durationDays} days</p>
-                <div className="flex items-center gap-2 mt-auto flex-wrap">
-                  <span className="text-[10px] uppercase tracking-wider text-teal-300 font-semibold bg-teal-400/10 px-2 py-0.5 rounded">{challenge.difficulty}</span>
-                  <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${statusTone.badge}`}>
+                <div className="mt-auto flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-teal-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300">{challenge.difficulty}</span>
+                  <span className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusTone.badge}`}>
                     {challenge.status}
                   </span>
                 </div>
@@ -793,7 +793,7 @@ const Challenges = () => {
                 </div>
               </div>
 
-              <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-100 transition-opacity sm:opacity-50 group-hover:opacity-100">
                 <button title="Moderate Chat" onClick={() => openModeration(challenge)} className="text-slate-400 hover:text-cyan-400 transition-colors">
                   <FaComments size={15} />
                 </button>
