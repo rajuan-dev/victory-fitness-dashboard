@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Drawer, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin, Upload } from 'antd';
 import { FiChevronDown, FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
-import { FaBolt, FaComments, FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
+import { FaComments, FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
 import { InboxOutlined } from '@ant-design/icons';
 import { adminApiRequest } from '../../../services/auth.service';
 
-const challengeCategories = ['Strength', 'Cardio', 'Mindfulness', 'Nutrition', 'Family'];
 const { Dragger } = Upload;
 const challengeStatusFilters = ['ALL', 'ACTIVE', 'UPCOMING', 'DRAFT', 'ARCHIVED'];
 const challengeInputClassName =
@@ -319,10 +318,8 @@ const Challenges = () => {
     setPlanDays([]);
     setActiveDayIndex(null);
     const initialValues = {
-      category: PLAN_GENERATION_DEFAULTS.category,
       durationDays: PLAN_GENERATION_DEFAULTS.durationDays,
       points: 100,
-      difficulty: 'BEGINNER',
       status: PLAN_GENERATION_DEFAULTS.status,
     };
     form.setFieldsValue(initialValues);
@@ -336,10 +333,8 @@ const Challenges = () => {
     const editValues = {
       title: challenge.title,
       description: challenge.description,
-      category: challenge.category,
       durationDays: challenge.durationDays,
       points: challenge.points,
-      difficulty: challenge.difficulty,
       status: challenge.status,
     };
     form.setFieldsValue(editValues);
@@ -664,6 +659,8 @@ const Challenges = () => {
         : (thumbnailCleared ? '' : (thumbnailPreview || editingChallenge?.thumbnail || ''));
       const payload = {
         ...values,
+        category: editingChallenge?.category || PLAN_GENERATION_DEFAULTS.category,
+        difficulty: editingChallenge?.difficulty || PLAN_GENERATION_DEFAULTS.difficulty,
         durationDays: normalizedPlanDays.length > 0 ? normalizedPlanDays.length : values.durationDays,
         planDays: normalizedPlanDays,
         planText: normalizedPlanDays.length > 0 ? '' : (editingChallenge?.planText || values.planText || ''),
@@ -762,30 +759,30 @@ const Challenges = () => {
           <Spin size="large" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 rounded-2xl shadow-xl border border-slate-700/50">
+        <div className="grid grid-cols-1 justify-items-center gap-4 rounded-2xl border border-slate-700/50 p-4 shadow-xl md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredChallenges.map((challenge) => {
             const statusTone = statusToneMap[challenge.status] || statusToneMap.DRAFT;
             return (
-            <div key={challenge.id} className={`bg-[#1e293b] border border-[#334155] border-l-4 ${statusTone.card} rounded-xl p-3 flex items-center gap-4 group hover:bg-[#253245] hover:border-slate-500 transition-all relative`}>
-              <div className="relative w-24 h-16 shrink-0 rounded-md overflow-hidden bg-slate-700">
+            <div key={challenge.id} className="group relative flex w-full max-w-sm items-center gap-4 rounded-xl border border-[#334155] bg-[#1e293b] p-3 transition-all hover:border-slate-500 hover:bg-[#253245]">
+              <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-slate-700">
                 {challenge.thumbnail ? (
-                  <img src={challenge.thumbnail} alt={challenge.title} className="w-full h-full object-cover" />
+                  <img src={challenge.thumbnail} alt={challenge.title} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-slate-800 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
                     No Image
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-orange-500">
+                <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/40 text-orange-500 opacity-0 transition-opacity group-hover:opacity-100">
                   <FaFire className="text-2xl drop-shadow-md" />
                 </div>
               </div>
 
-              <div className="flex flex-col flex-1 min-w-0 pr-6">
-                <h3 className="text-sm font-semibold text-slate-100 truncate mb-1" title={challenge.title}>{challenge.title}</h3>
+              <div className="min-w-0 flex-1 pr-6">
+                <h3 className="mb-1 truncate text-sm font-semibold text-slate-100" title={challenge.title}>{challenge.title}</h3>
                 <p className="text-xs text-slate-400 truncate mb-2 mt-0.5">{challenge.category} · {challenge.durationDays} days</p>
-                <div className="flex items-center gap-2 mt-auto flex-wrap">
-                  <span className="text-[10px] uppercase tracking-wider text-teal-300 font-semibold bg-teal-400/10 px-2 py-0.5 rounded">{challenge.difficulty}</span>
-                  <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${statusTone.badge}`}>
+                <div className="mt-auto flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-teal-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300">{challenge.difficulty}</span>
+                  <span className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${statusTone.badge}`}>
                     {challenge.status}
                   </span>
                 </div>
@@ -796,7 +793,7 @@ const Challenges = () => {
                 </div>
               </div>
 
-              <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-100 transition-opacity sm:opacity-50 group-hover:opacity-100">
                 <button title="Moderate Chat" onClick={() => openModeration(challenge)} className="text-slate-400 hover:text-cyan-400 transition-colors">
                   <FaComments size={15} />
                 </button>
@@ -855,26 +852,22 @@ const Challenges = () => {
           layout="vertical"
           onFinish={handleSubmit}
           onValuesChange={(changedValues, allValues) => {
-            if (changedValues.category !== undefined || changedValues.durationDays !== undefined || changedValues.difficulty !== undefined) {
+            if (changedValues.durationDays !== undefined) {
               applyLiveChallengeSuggestions(allValues);
             }
           }}
           className="mt-4"
         >
           <div className="mb-5 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur">
-            <div className="flex items-start justify-between gap-4">
+            <div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">Challenge Setup</p>
                 <h3 className="mt-1 text-lg font-semibold text-slate-900">
                   {editingChallenge ? 'Refine the challenge details' : 'Create a new challenge'}
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Keep the core info, plan, and thumbnail aligned with the rest of the dashboard.
+                  Keep the core info and thumbnail aligned with the rest of the dashboard.
                 </p>
-              </div>
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 text-right shadow-sm">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-600">Plan Builder</p>
-                <p className="mt-0.5 text-xs text-slate-500">Day cards open a full detail editor</p>
               </div>
             </div>
           </div>
@@ -899,83 +892,11 @@ const Challenges = () => {
             />
           </Form.Item>
 
-          <div className="mb-4 flex justify-end">
-            <button
-              type="button"
-              onClick={loadThirtyDayPreset}
-              disabled={planGenerating}
-              title="Generate plan"
-              className="flex h-10 items-center justify-center px-1 text-sky-400 transition-all hover:text-sky-300 hover:drop-shadow-[0_0_10px_rgba(56,189,248,0.7)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {planGenerating ? <Spin size="small" /> : <FaBolt size={20} className="drop-shadow-[0_0_8px_rgba(56,189,248,0.55)]" />}
-            </button>
-          </div>
-
-          <div className="mb-6 rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-blue-50 p-5 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">Day-by-Day Plan</h3>
-                <p className="text-xs text-slate-500">Each day can contain multiple sections, and each section can contain multiple exercises.</p>
-              </div>
-              <Button onClick={addPlanDay} type="dashed" className="border-slate-300 bg-white text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600">
-                Add Day
-              </Button>
-            </div>
-
-            {planDays.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500 shadow-sm">
-                No plan days yet. Generate a plan for the selected duration or add days manually.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {planDays.map((day, dayIndex) => (
-                  <button
-                    key={`day-${day.day_number}-${dayIndex}`}
-                    type="button"
-                    onClick={() => openDayEditor(dayIndex)}
-                    className="w-full rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-50/60 hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-cyan-600">Day {day.day_number}</p>
-                        <h4 className="mt-1 text-sm font-semibold text-slate-800">{day.title || `Day ${day.day_number}`}</h4>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {day.focus || 'Click to open and edit this day.'}
-                        </p>
-                      </div>
-                      <FiEdit size={16} className="mt-1 shrink-0 text-slate-400" />
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-medium text-slate-500">
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">{day.sections.length} sections</span>
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
-                        {day.sections.reduce((total, section) => total + section.exercises.length, 0)} exercises
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm">
             <div className="mb-4">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">Challenge Metadata</p>
-              <h4 className="mt-1 text-sm font-semibold text-slate-900">Category, duration, points, and status</h4>
+              <h4 className="mt-1 text-sm font-semibold text-slate-900">Duration, points, and status</h4>
             </div>
-
-            <Form.Item
-              name="category"
-              label={<span className="font-medium text-slate-700">Category</span>}
-              rules={[{ required: true, message: 'Please select a category' }]}
-            >
-              <Select placeholder="Select category" size="large">
-                {challengeCategories.map((category) => (
-                  <Select.Option key={category} value={category}>
-                    {category}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Form.Item
@@ -996,18 +917,6 @@ const Challenges = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Form.Item
-                name="difficulty"
-                label={<span className="font-medium text-slate-700">Difficulty Level</span>}
-                rules={[{ required: true, message: 'Please select a difficulty' }]}
-              >
-                <Select placeholder="Select difficulty" size="large">
-                  <Select.Option value="BEGINNER">BEGINNER</Select.Option>
-                  <Select.Option value="INTERMEDIATE">INTERMEDIATE</Select.Option>
-                  <Select.Option value="ADVANCED">ADVANCED</Select.Option>
-                </Select>
-              </Form.Item>
-
               <Form.Item
                 name="status"
                 label={<span className="font-medium text-slate-700">Status</span>}

@@ -3,23 +3,74 @@ import { Modal, Form, Input, Select, message, Popconfirm, Button } from 'antd';
 import { globalDemoData } from '../../utils/demoData';
 import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
 import { FaGraduationCap } from 'react-icons/fa';
+import ThumbnailUploadField from "../../components/dashboard/ThumbnailUploadField";
+import { toBase64Payload } from "../../utils/imageUpload";
+
+const DEFAULT_MASTERCLASS_THUMBNAIL = "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=300&auto=format&fit=crop";
 
 const Masterclasses = () => {
   const [masterclasses, setMasterclasses] = useState(globalDemoData.masterclasses || []);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingMasterclass, setEditingMasterclass] = useState(null);
+  const [selectedThumbnail, setSelectedThumbnail] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState('');
+  const [thumbnailFileList, setThumbnailFileList] = useState([]);
+  const [thumbnailCleared, setThumbnailCleared] = useState(false);
   const [form] = Form.useForm();
 
   const handleAdd = () => {
     setEditingMasterclass(null);
     form.resetFields();
+    setSelectedThumbnail(null);
+    setThumbnailPreview('');
+    setThumbnailFileList([]);
+    setThumbnailCleared(false);
     setIsModalVisible(true);
   };
 
   const handleEdit = (mcs) => {
     setEditingMasterclass(mcs);
     form.setFieldsValue(mcs);
+    setSelectedThumbnail(null);
+    setThumbnailPreview(mcs.thumbnailUrl || '');
+    setThumbnailFileList([]);
+    setThumbnailCleared(false);
     setIsModalVisible(true);
+  };
+
+  const handleThumbnailChange = async ({ fileList }) => {
+    setThumbnailFileList(fileList.slice(-1));
+    const file = fileList[fileList.length - 1]?.originFileObj;
+    if (!file) {
+      setSelectedThumbnail(null);
+      return;
+    }
+
+    try {
+      const payload = await toBase64Payload(file, "masterclass-thumbnail.jpg");
+      setSelectedThumbnail(payload);
+      setThumbnailPreview(payload.preview);
+      setThumbnailCleared(false);
+    } catch {
+      message.error('Failed to read thumbnail image');
+    }
+  };
+
+  const handleThumbnailRemove = () => {
+    setSelectedThumbnail(null);
+    setThumbnailFileList([]);
+    setThumbnailPreview('');
+    setThumbnailCleared(true);
+  };
+
+  const closeMasterclassModal = () => {
+    setIsModalVisible(false);
+    setEditingMasterclass(null);
+    setSelectedThumbnail(null);
+    setThumbnailPreview('');
+    setThumbnailFileList([]);
+    setThumbnailCleared(false);
+    form.resetFields();
   };
 
   const handleDelete = (id) => {
@@ -28,19 +79,27 @@ const Masterclasses = () => {
   };
 
   const handleSubmit = (values) => {
+    const nextThumbnail = selectedThumbnail
+      ? selectedThumbnail.preview
+      : (thumbnailCleared ? '' : (thumbnailPreview || editingMasterclass?.thumbnailUrl || DEFAULT_MASTERCLASS_THUMBNAIL));
+    const payload = {
+      ...values,
+      thumbnailUrl: nextThumbnail,
+    };
+
     if (editingMasterclass) {
-      setMasterclasses(prev => prev.map(c => c.id === editingMasterclass.id ? { ...c, ...values } : c));
+      setMasterclasses(prev => prev.map(c => c.id === editingMasterclass.id ? { ...c, ...payload } : c));
       message.success('Masterclass updated successfully (Demo)');
     } else {
       const newMasterclass = {
         id: Date.now().toString(),
-        ...values,
-        thumbnailUrl: values.thumbnailUrl || "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=300&auto=format&fit=crop"
+        ...payload,
+        thumbnailUrl: payload.thumbnailUrl || DEFAULT_MASTERCLASS_THUMBNAIL,
       };
       setMasterclasses([newMasterclass, ...masterclasses]);
       message.success('Masterclass added successfully (Demo)');
     }
-    setIsModalVisible(false);
+    closeMasterclassModal();
   };
 
   return (
@@ -114,7 +173,7 @@ const Masterclasses = () => {
       <Modal
         title={<span className="text-slate-100 font-bold text-lg select-none">{editingMasterclass ? "Edit Masterclass" : "Add Masterclass"}</span>}
         open={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
+        onCancel={closeMasterclassModal}
         footer={null}
         destroyOnClose
         width={750}
@@ -166,16 +225,20 @@ const Masterclasses = () => {
             >
               <Input placeholder="10:00" className="bg-[#1e293b] border-[#334155] text-slate-100 hover:border-slate-400 focus:border-[#00e5ff] rounded-md h-10" />
             </Form.Item>
-
-            <Form.Item
-              name="thumbnailUrl"
-              label={<span className="font-black text-[11px] uppercase tracking-widest text-slate-300">THUMBNAIL URL</span>}
-              className="mb-4"
-              initialValue="https://picsum.photos/seed/longevi/300/200"
-            >
-              <Input className="bg-[#1e293b] border-[#334155] text-slate-100 hover:border-slate-400 focus:border-[#00e5ff] rounded-md h-10" />
-            </Form.Item>
           </div>
+
+          <ThumbnailUploadField
+            eyebrow="Thumbnail"
+            title="Upload the masterclass cover image"
+            fileList={thumbnailFileList}
+            onChange={handleThumbnailChange}
+            onRemove={handleThumbnailRemove}
+            previewSrc={thumbnailPreview}
+            fallbackPreviewSrc={editingMasterclass?.thumbnailUrl && !thumbnailCleared ? editingMasterclass.thumbnailUrl : ''}
+            previewAlt="Masterclass thumbnail preview"
+            tone="dark"
+            className="mb-6"
+          />
 
           {/* Row 3 */}
           <Form.Item
@@ -219,7 +282,7 @@ const Masterclasses = () => {
           <div className="flex justify-between gap-4">
             <Button 
               size="large" 
-              onClick={() => setIsModalVisible(false)}
+              onClick={closeMasterclassModal}
               className="flex-1 bg-[#1e293b] border-transparent text-slate-100 font-bold hover:bg-slate-700 hover:text-white h-12"
             >
               Cancel
