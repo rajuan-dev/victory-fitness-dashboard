@@ -41,6 +41,147 @@ const DEFAULT_SUMMARY = {
   userChart: [],
 };
 
+const formatDisplayDate = (value) => {
+  if (!value) {
+    return "N/A";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+
+  return date.toLocaleDateString();
+};
+
+const formatDisplayDateTime = (value) => {
+  if (!value) {
+    return "N/A";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+
+  return date.toLocaleString();
+};
+
+const formatEnumLabel = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "N/A";
+  }
+
+  return normalized
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+const formatBooleanLabel = (value) => (value ? "Yes" : "No");
+
+const addBillingCycleToDate = (value, billingCycle) => {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const normalizedCycle = String(billingCycle || "").toLowerCase();
+  if (normalizedCycle === "monthly") {
+    date.setMonth(date.getMonth() + 1);
+    return date;
+  }
+
+  if (normalizedCycle === "quarterly") {
+    date.setMonth(date.getMonth() + 3);
+    return date;
+  }
+
+  if (normalizedCycle === "weekly") {
+    date.setDate(date.getDate() + 7);
+    return date;
+  }
+
+  if (normalizedCycle === "yearly" || normalizedCycle === "annual") {
+    date.setFullYear(date.getFullYear() + 1);
+    return date;
+  }
+
+  return null;
+};
+
+const getSubscriptionExpiryLabel = (user) => {
+  const directValue =
+    user.subscription_expires_at ||
+    user.subscription?.expires_at ||
+    user.expires_at ||
+    "";
+
+  if (directValue) {
+    return formatDisplayDateTime(directValue);
+  }
+
+  const referenceDate =
+    user.subscription_confirmed_at ||
+    user.subscription?.confirmed_at ||
+    user.subscription_started_at ||
+    user.subscription?.started_at;
+  const billingCycle =
+    user.subscription_billing_cycle || user.subscription?.billing_cycle;
+  const estimatedExpiry = addBillingCycleToDate(referenceDate, billingCycle);
+
+  return estimatedExpiry ? formatDisplayDateTime(estimatedExpiry) : "N/A";
+};
+
+const getStatusBadgeClassName = (value) => {
+  const normalized = String(value || "").toUpperCase();
+
+  if (normalized === "ACTIVE") {
+    return "bg-green-400/30 text-green-100";
+  }
+
+  if (normalized === "PENDING") {
+    return "bg-amber-400/30 text-amber-100";
+  }
+
+  return "bg-red-400/30 text-red-100";
+};
+
+const getUserDetailCards = (user) => {
+  const subscriptionAccess = Array.isArray(user.subscription_access)
+    ? user.subscription_access
+    : Array.isArray(user.subscription?.access)
+      ? user.subscription.access
+      : [];
+
+  return [
+    { label: "Email", value: user.email || "N/A" },
+    { label: "Phone No", value: user.contactNumber || user.phone_number || "N/A" },
+    { label: "Joined Date", value: formatDisplayDate(user.createdAt) },
+    { label: "Last Updated", value: formatDisplayDateTime(user.updatedAt) },
+    { label: "Country", value: user.country || "N/A" },
+    { label: "Role", value: formatEnumLabel(user.role) },
+    { label: "Verified", value: formatBooleanLabel(user.isVerified ?? user.is_verified) },
+    { label: "Account Status", value: formatEnumLabel(user.status) },
+    { label: "Subscription Tier", value: formatEnumLabel(user.subscription_tier || user.subscriptionTier || user.subscription?.tier) },
+    { label: "Subscription Role", value: formatEnumLabel(user.subscription_role || user.subscription?.role) },
+    { label: "Subscription Status", value: formatEnumLabel(user.subscription_status || user.subscription?.status) },
+    { label: "Billing Cycle", value: formatEnumLabel(user.subscription_billing_cycle || user.subscription?.billing_cycle) },
+    { label: "Payment Confirmed", value: formatBooleanLabel(user.subscription_is_purchased ?? user.subscription?.is_purchased) },
+    { label: "Purchase Source", value: formatEnumLabel(user.subscription_purchase_source || user.subscription?.purchase_source) },
+    { label: "Subscription Started", value: formatDisplayDateTime(user.subscription_started_at || user.subscription?.started_at) },
+    { label: "Subscription Confirmed", value: formatDisplayDateTime(user.subscription_confirmed_at || user.subscription?.confirmed_at) },
+    { label: "Subscription Expires", value: getSubscriptionExpiryLabel(user) },
+    { label: "Feature Access", value: subscriptionAccess.length > 0 ? subscriptionAccess.map(formatEnumLabel).join(", ") : "N/A", fullWidth: true },
+  ];
+};
+
 function UserDetails() {
   const navigate = useNavigate();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -225,6 +366,19 @@ function UserDetails() {
     },
   ];
 
+  const detailCards = selectedUser ? getUserDetailCards(selectedUser) : [];
+  const subscriptionTierLabel = selectedUser
+    ? formatEnumLabel(
+        selectedUser.subscription_tier ||
+          selectedUser.subscriptionTier ||
+          selectedUser.subscription?.tier,
+      )
+    : "N/A";
+  const headerStatus = selectedUser
+    ? String(selectedUser.subscription_status || selectedUser.status || "").toUpperCase()
+    : "";
+  const joinedLabel = selectedUser ? formatDisplayDate(selectedUser.createdAt) : "N/A";
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-4 shadow-lg md:px-6 md:py-5">
@@ -385,19 +539,16 @@ function UserDetails() {
                   </h2>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-white/20 px-3 py-1.5 text-sm font-medium backdrop-blur-sm">
-                      {selectedUser.role}
+                      {formatEnumLabel(selectedUser.role)}
                     </span>
                     <span className="rounded-full bg-white/20 px-3 py-1.5 text-sm font-medium backdrop-blur-sm">
-                      Joined: {new Date(selectedUser.createdAt).toLocaleDateString()}
+                      {subscriptionTierLabel}
                     </span>
-                    <span
-                      className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-                        selectedUser.status === "ACTIVE"
-                          ? "bg-green-400/30 text-green-100"
-                          : "bg-red-400/30 text-red-100"
-                      }`}
-                    >
-                      {selectedUser.status}
+                    <span className="rounded-full bg-white/20 px-3 py-1.5 text-sm font-medium backdrop-blur-sm">
+                      Joined: {joinedLabel}
+                    </span>
+                    <span className={`rounded-full px-3 py-1.5 text-sm font-medium ${getStatusBadgeClassName(headerStatus)}`}>
+                      {formatEnumLabel(headerStatus)}
                     </span>
                   </div>
                 </div>
@@ -416,28 +567,17 @@ function UserDetails() {
             ) : (
               <>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm">
-                    <div className="mb-1 text-sm font-medium text-slate-600">Email</div>
-                    <div className="text-lg font-semibold text-slate-800">{selectedUser.email}</div>
-                  </div>
-                  <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm">
-                    <div className="mb-1 text-sm font-medium text-slate-600">Phone No</div>
-                    <div className="text-lg font-semibold text-slate-800">
-                      {selectedUser.contactNumber || "N/A"}
+                  {detailCards.map((card) => (
+                    <div
+                      key={card.label}
+                      className={`rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm ${card.fullWidth ? "md:col-span-2" : ""}`}
+                    >
+                      <div className="mb-1 text-sm font-medium text-slate-600">{card.label}</div>
+                      <div className={`font-semibold text-slate-800 ${card.fullWidth ? "text-base leading-7" : "text-lg"}`}>
+                        {card.value}
+                      </div>
                     </div>
-                  </div>
-                  <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm">
-                    <div className="mb-1 text-sm font-medium text-slate-600">Joined Date</div>
-                    <div className="text-lg font-semibold text-slate-800">
-                      {new Date(selectedUser.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm">
-                    <div className="mb-1 text-sm font-medium text-slate-600">Country</div>
-                    <div className="text-lg font-semibold text-slate-800">
-                      {selectedUser.country || "N/A"}
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="mt-8 flex items-center justify-end border-t border-slate-200 pt-6">
