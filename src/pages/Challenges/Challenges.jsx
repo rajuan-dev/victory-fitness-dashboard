@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Drawer, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin, Upload } from 'antd';
+import { Modal, Drawer, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin } from 'antd';
 import { FiChevronDown, FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
 import { FaComments, FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
-import { InboxOutlined } from '@ant-design/icons';
 import { adminApiRequest } from '../../../services/auth.service';
+import ThumbnailUploadField from "../../components/dashboard/ThumbnailUploadField";
+import { toBase64Payload } from "../../utils/imageUpload";
 
-const { Dragger } = Upload;
 const challengeStatusFilters = ['ALL', 'ACTIVE', 'UPCOMING', 'DRAFT', 'ARCHIVED'];
 const challengeInputClassName =
   'rounded-xl border-slate-200 bg-white text-slate-800 shadow-sm placeholder:text-slate-400 hover:border-blue-300 focus:border-blue-500';
@@ -18,22 +18,6 @@ const PLAN_GENERATION_DEFAULTS = {
   difficulty: 'INTERMEDIATE',
   status: 'ACTIVE',
 };
-
-const toBase64Payload = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => {
-    const result = typeof reader.result === 'string' ? reader.result : '';
-    const imageBase64 = result.includes(',') ? result.split(',')[1] : '';
-    resolve({
-      image_base64: imageBase64,
-      mime_type: file.type || 'image/jpeg',
-      file_name: file.name || 'challenge-thumbnail.jpg',
-      preview: result,
-    });
-  };
-  reader.onerror = reject;
-  reader.readAsDataURL(file);
-});
 
 const createId = (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -366,7 +350,7 @@ const Challenges = () => {
     }
 
     try {
-      const payload = await toBase64Payload(file);
+      const payload = await toBase64Payload(file, "challenge-thumbnail.jpg");
       setSelectedThumbnail(payload);
       setThumbnailPreview(payload.preview);
       setThumbnailCleared(false);
@@ -932,44 +916,16 @@ const Challenges = () => {
             </div>
           </div>
 
-          <div className="mt-6 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm">
-            <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">Thumbnail</p>
-              <h4 className="mt-1 text-sm font-semibold text-slate-900">Upload the challenge cover image</h4>
-            </div>
-
-            <Form.Item label={<span className="font-medium text-slate-700">Thumbnail Upload</span>}>
-              <Dragger
-                accept="image/png,image/jpeg,image/webp"
-                beforeUpload={() => false}
-                multiple={false}
-                fileList={thumbnailFileList}
-                onChange={handleThumbnailChange}
-                onRemove={handleThumbnailRemove}
-                className="rounded-2xl border-slate-200 bg-slate-50"
-              >
-                <p className="ant-upload-drag-icon">
-                  <InboxOutlined />
-                </p>
-                <p className="ant-upload-text">Click or drag thumbnail image here</p>
-                <p className="ant-upload-hint">Supports PNG, JPG, and WEBP. Adding a new image replaces the current one.</p>
-              </Dragger>
-              {thumbnailPreview ? (
-                <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
-                  <img src={thumbnailPreview} alt="Challenge thumbnail preview" className="h-40 w-full object-cover" />
-                </div>
-              ) : (
-                <p className="mt-3 text-xs text-slate-500">No thumbnail selected yet.</p>
-              )}
-              {thumbnailPreview ? (
-                <div className="mt-3 flex justify-end">
-                  <Button danger type="text" onClick={handleThumbnailRemove}>
-                    Remove thumbnail
-                  </Button>
-                </div>
-              ) : null}
-            </Form.Item>
-          </div>
+          <ThumbnailUploadField
+            eyebrow="Thumbnail"
+            title="Upload the challenge cover image"
+            fileList={thumbnailFileList}
+            onChange={handleThumbnailChange}
+            onRemove={handleThumbnailRemove}
+            previewSrc={thumbnailPreview}
+            previewAlt="Challenge thumbnail preview"
+            className="mt-6"
+          />
 
           <div className="mt-8 flex justify-end gap-3 border-t border-slate-200/80 pt-6">
             <Button size="large" onClick={() => setIsModalVisible(false)} className="border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50">
