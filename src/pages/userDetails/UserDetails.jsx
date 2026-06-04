@@ -182,6 +182,49 @@ const getUserDetailCards = (user) => {
   ];
 };
 
+const getUserDetailSections = (user) => {
+  const cards = getUserDetailCards(user);
+
+  return [
+    {
+      key: "account",
+      eyebrow: "Account Overview",
+      title: "Identity and account state",
+      cards: cards.filter((card) =>
+        [
+          "Email",
+          "Phone No",
+          "Country",
+          "Role",
+          "Verified",
+          "Account Status",
+          "Joined Date",
+          "Last Updated",
+        ].includes(card.label),
+      ),
+    },
+    {
+      key: "subscription",
+      eyebrow: "Subscription Details",
+      title: "Membership, billing, and access",
+      cards: cards.filter((card) =>
+        [
+          "Subscription Tier",
+          "Subscription Role",
+          "Subscription Status",
+          "Billing Cycle",
+          "Payment Confirmed",
+          "Purchase Source",
+          "Subscription Started",
+          "Subscription Confirmed",
+          "Subscription Expires",
+          "Feature Access",
+        ].includes(card.label),
+      ),
+    },
+  ];
+};
+
 function UserDetails() {
   const navigate = useNavigate();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -366,7 +409,7 @@ function UserDetails() {
     },
   ];
 
-  const detailCards = selectedUser ? getUserDetailCards(selectedUser) : [];
+  const detailSections = selectedUser ? getUserDetailSections(selectedUser) : [];
   const subscriptionTierLabel = selectedUser
     ? formatEnumLabel(
         selectedUser.subscription_tier ||
@@ -519,32 +562,53 @@ function UserDetails() {
         centered
         onCancel={handleViewCancel}
         footer={null}
-        width={800}
+        width={1120}
+        style={{ maxWidth: "calc(100vw - 32px)" }}
+        styles={{
+          body: {
+            paddingTop: 12,
+            paddingBottom: 20,
+            background: "linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%)",
+          },
+          header: {
+            borderBottom: "1px solid rgba(226, 232, 240, 0.9)",
+            paddingInline: 24,
+            paddingBlock: 18,
+            background: "rgba(255, 255, 255, 0.96)",
+          },
+          content: {
+            background: "#f8fafc",
+          },
+        }}
         className="user-view-modal"
       >
         {selectedUser && (
-          <div className="relative">
-            <div className="-m-6 mb-6 rounded-t-lg bg-gradient-to-r from-blue-600 to-indigo-600 p-6">
-              <div className="flex items-center gap-6">
+          <div className="relative mt-2">
+            <div className="mb-5 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
                 <div className="relative">
                   <img
                     src={selectedUser.profileImage || "/userimg.png"}
                     alt={selectedUser.fullName}
-                    className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-xl"
+                    className="h-20 w-20 rounded-full border-4 border-slate-100 object-cover shadow-md"
                   />
                 </div>
-                <div className="text-white">
-                  <h2 className="mb-2 text-2xl font-bold md:text-3xl">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">User Details</p>
+                  <h2 className="mt-1 mb-2 text-xl font-semibold text-slate-900 md:text-2xl">
                     {isViewLoading ? "Loading user..." : selectedUser.fullName}
                   </h2>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-white/20 px-3 py-1.5 text-sm font-medium backdrop-blur-sm">
+                  <p className="text-sm text-slate-500">
+                    Review the account profile, subscription details, and membership access in one place.
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
                       {formatEnumLabel(selectedUser.role)}
                     </span>
-                    <span className="rounded-full bg-white/20 px-3 py-1.5 text-sm font-medium backdrop-blur-sm">
+                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
                       {subscriptionTierLabel}
                     </span>
-                    <span className="rounded-full bg-white/20 px-3 py-1.5 text-sm font-medium backdrop-blur-sm">
+                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
                       Joined: {joinedLabel}
                     </span>
                     <span className={`rounded-full px-3 py-1.5 text-sm font-medium ${getStatusBadgeClassName(headerStatus)}`}>
@@ -556,34 +620,64 @@ function UserDetails() {
             </div>
 
             {isViewLoading ? (
-              <div className="grid grid-cols-1 gap-4 animate-pulse md:grid-cols-2">
-                {[...Array(4)].map((_, index) => (
-                  <div key={index} className="rounded-xl border border-slate-200 bg-slate-100 p-5">
-                    <div className="mb-3 h-4 w-20 rounded bg-slate-200" />
-                    <div className="h-6 w-full rounded bg-slate-200" />
+              <div className="space-y-5 animate-pulse">
+                {[...Array(2)].map((_, sectionIndex) => (
+                  <div key={sectionIndex} className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm">
+                    <div className="mb-4">
+                      <div className="h-3 w-32 rounded bg-slate-200" />
+                      <div className="mt-2 h-4 w-48 rounded bg-slate-200" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {[...Array(6)].map((_, index) => (
+                        <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="mb-2 h-3 w-20 rounded bg-slate-200" />
+                          <div className="h-5 w-full rounded bg-slate-200" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {detailCards.map((card) => (
+                <div className="max-h-[62vh] space-y-5 overflow-y-auto pr-1">
+                  {detailSections.map((section) => (
                     <div
-                      key={card.label}
-                      className={`rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 shadow-sm ${card.fullWidth ? "md:col-span-2" : ""}`}
+                      key={section.key}
+                      className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm"
                     >
-                      <div className="mb-1 text-sm font-medium text-slate-600">{card.label}</div>
-                      <div className={`font-semibold text-slate-800 ${card.fullWidth ? "text-base leading-7" : "text-lg"}`}>
-                        {card.value}
+                      <div className="mb-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">
+                          {section.eyebrow}
+                        </p>
+                        <h4 className="mt-1 text-sm font-semibold text-slate-900">
+                          {section.title}
+                        </h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {section.cards.map((card) => (
+                          <div
+                            key={card.label}
+                            className={`rounded-2xl border border-slate-200 bg-slate-50 p-4 ${card.fullWidth ? "md:col-span-2 xl:col-span-3" : ""}`}
+                          >
+                            <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                              {card.label}
+                            </div>
+                            <div className={`font-semibold text-slate-800 ${card.fullWidth ? "text-sm leading-6" : "text-base"}`}>
+                              {card.value}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-8 flex items-center justify-end border-t border-slate-200 pt-6">
+                <div className="mt-5 flex items-center justify-end border-t border-slate-200 pt-4">
                   <button
                     onClick={handleViewCancel}
-                    className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-indigo-700"
+                    className="rounded-xl border border-slate-200 bg-white px-7 py-2.5 font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
                   >
                     Close
                   </button>

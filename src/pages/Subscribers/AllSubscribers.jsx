@@ -6,6 +6,90 @@ import { FaRegEye } from "react-icons/fa";
 import { AiOutlineDelete } from "react-icons/ai";
 import { globalDemoData } from "../../utils/demoData";
 
+const formatDisplayDate = (value) => {
+  if (!value) {
+    return "N/A";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+
+  return date.toLocaleDateString();
+};
+
+const formatDisplayDateTime = (value) => {
+  if (!value) {
+    return "N/A";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+
+  return date.toLocaleString();
+};
+
+const formatEnumLabel = (value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) {
+    return "N/A";
+  }
+
+  return normalized
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+const getStatusBadgeClassName = (value) => {
+  const normalized = String(value || "").toUpperCase();
+
+  if (normalized === "ACTIVE") {
+    return "bg-green-400/30 text-green-100";
+  }
+
+  if (normalized === "PENDING") {
+    return "bg-amber-400/30 text-amber-100";
+  }
+
+  return "bg-red-400/30 text-red-100";
+};
+
+const getSubscriberDetailSections = (user) => [
+  {
+    key: "account",
+    eyebrow: "Account Overview",
+    title: "Identity and subscriber state",
+    cards: [
+      { label: "Email", value: user.email || "N/A" },
+      { label: "Phone No", value: user.contactNumber || "N/A" },
+      { label: "Country", value: user.country || "N/A" },
+      { label: "Joined Date", value: formatDisplayDate(user.joinedDate) },
+    ],
+  },
+  {
+    key: "subscription",
+    eyebrow: "Subscription Details",
+    title: "Membership and access summary",
+    cards: [
+      { label: "Subscription Tier", value: formatEnumLabel(user.subscriptionTier) },
+      { label: "Subscription Status", value: formatEnumLabel(user.status) },
+      { label: "Member Since", value: formatDisplayDateTime(user.joinedDate) },
+      {
+        label: "Plan Summary",
+        value: user.subscriptionTier
+          ? `${formatEnumLabel(user.subscriptionTier)} membership is currently ${formatEnumLabel(user.status)}.`
+          : "N/A",
+        fullWidth: true,
+      },
+    ],
+  },
+];
+
 
 function AllSubscribers() {
   const navigate = useNavigate();
@@ -110,6 +194,9 @@ function AllSubscribers() {
         .some((v) => String(v).toLowerCase().includes(q))
     );
   }, [usersData, searchQuery]);
+
+  const detailSections = selectedUser ? getSubscriberDetailSections(selectedUser) : [];
+  const joinedLabel = selectedUser ? formatDisplayDate(selectedUser.joinedDate) : "N/A";
 
   if (isLoading) {
     return (
@@ -234,76 +321,101 @@ function AllSubscribers() {
           centered
           onCancel={handleViewCancel}
           footer={null}
-          width={800}
+          width={1120}
+          style={{ maxWidth: "calc(100vw - 32px)" }}
+          styles={{
+            body: {
+              paddingTop: 12,
+              paddingBottom: 20,
+              background: "linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%)",
+            },
+            header: {
+              borderBottom: "1px solid rgba(226, 232, 240, 0.9)",
+              paddingInline: 24,
+              paddingBlock: 18,
+              background: "rgba(255, 255, 255, 0.96)",
+            },
+            content: {
+              background: "#f8fafc",
+            },
+          }}
           className="user-view-modal"
         >
           {selectedUser && (
-            <div className="relative">
-              {/* Header with gradient */}
-              <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 -m-6 mb-6 rounded-t-lg">
-                <div className="flex items-center gap-6">
+            <div className="relative mt-2">
+              <div className="mb-5 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center">
                   <div className="relative">
                     <img
                       src={selectedUser.profileImage || "/userimg.png"}
                       alt={selectedUser.fullName}
-                      className="w-24 h-24 rounded-full border-4 border-white shadow-xl object-cover"
+                      className="h-20 w-20 rounded-full border-4 border-slate-100 object-cover shadow-md"
                     />
                   </div>
-                  <div className="text-white">
-                    <h2 className="text-2xl md:text-3xl font-bold mb-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">Subscriber Details</p>
+                    <h2 className="mt-1 mb-2 text-xl font-semibold text-slate-900 md:text-2xl">
                       {selectedUser.fullName}
                     </h2>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-medium">
-                        {selectedUser.subscriptionTier}
+                    <p className="text-sm text-slate-500">
+                      Review subscriber profile, plan status, and membership summary in the same dashboard style.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                        Subscriber
                       </span>
-                      <span className="bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-medium">
-                        Joined: {new Date(selectedUser.joinedDate).toLocaleDateString()}
+                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                        {formatEnumLabel(selectedUser.subscriptionTier)}
                       </span>
-                      <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${selectedUser.status === "ACTIVE"
-                        ? "bg-green-400/30 text-green-100"
-                        : "bg-red-400/30 text-red-100"
-                        }`}>
-                        {selectedUser.status}
+                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                        Joined: {joinedLabel}
+                      </span>
+                      <span className={`rounded-full px-3 py-1.5 text-sm font-medium ${getStatusBadgeClassName(selectedUser.status)}`}>
+                        {formatEnumLabel(selectedUser.status)}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-5 rounded-xl shadow-sm">
-                  <div className="text-slate-600 text-sm font-medium mb-1">Email</div>
-                  <div className="text-lg font-semibold text-slate-800">
-                    {selectedUser.email}
+              <div className="max-h-[62vh] space-y-5 overflow-y-auto pr-1">
+                {detailSections.map((section) => (
+                  <div
+                    key={section.key}
+                    className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm"
+                  >
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">
+                        {section.eyebrow}
+                      </p>
+                      <h4 className="mt-1 text-sm font-semibold text-slate-900">
+                        {section.title}
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {section.cards.map((card) => (
+                        <div
+                          key={card.label}
+                          className={`rounded-2xl border border-slate-200 bg-slate-50 p-4 ${card.fullWidth ? "md:col-span-2 xl:col-span-3" : ""}`}
+                        >
+                          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                            {card.label}
+                          </div>
+                          <div className={`font-semibold text-slate-800 ${card.fullWidth ? "text-sm leading-6" : "text-base"}`}>
+                            {card.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-5 rounded-xl shadow-sm">
-                  <div className="text-slate-600 text-sm font-medium mb-1">Phone No</div>
-                  <div className="text-lg font-semibold text-slate-800">
-                    {selectedUser.contactNumber || "N/A"}
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-5 rounded-xl shadow-sm">
-                  <div className="text-slate-600 text-sm font-medium mb-1">Joined Date</div>
-                  <div className="text-lg font-semibold text-slate-800">
-                    {new Date(selectedUser.joinedDate).toLocaleDateString()}
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 p-5 rounded-xl shadow-sm">
-                  <div className="text-slate-600 text-sm font-medium mb-1">Country</div>
-                  <div className="text-lg font-semibold text-slate-800">
-                    {selectedUser.country || "N/A"}
-                  </div>
-                </div>
+                ))}
               </div>
 
-              {/* Action buttons */}
-              <div className="flex justify-end items-center mt-8 pt-6 border-t border-slate-200">
+              <div className="mt-5 flex items-center justify-end border-t border-slate-200 pt-4">
                 <button
                   onClick={handleViewCancel}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition-all duration-200"
+                  className="rounded-xl border border-slate-200 bg-white px-7 py-2.5 font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
                 >
                   Close
                 </button>
