@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Drawer, Form, Input, InputNumber, Select, message, Popconfirm, Button, Spin } from 'antd';
-import { FiChevronDown, FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
+import { Modal, Form, Input, InputNumber, Select, Upload, message, Popconfirm, Button, Spin } from 'antd';
+import { FiChevronDown, FiEdit, FiTrash2, FiPlus, FiImage } from 'react-icons/fi';
 import { FaComments, FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
 import { adminApiRequest } from '../../../services/auth.service';
-import ThumbnailUploadField from "../../components/dashboard/ThumbnailUploadField";
 import { toBase64Payload } from "../../utils/imageUpload";
 
 const challengeStatusFilters = ['ALL', 'ACTIVE', 'UPCOMING', 'DRAFT', 'ARCHIVED'];
@@ -258,40 +257,6 @@ const Challenges = () => {
     loadChallenges();
   }, []);
 
-  const applyLiveChallengeSuggestions = (allValues) => {
-    const selectedCategory = allValues.category || PLAN_GENERATION_DEFAULTS.category;
-    const selectedDifficulty = allValues.difficulty || PLAN_GENERATION_DEFAULTS.difficulty;
-    const requestedDuration = Math.max(Number(allValues.durationDays || PLAN_GENERATION_DEFAULTS.durationDays), 1);
-    const nextSuggestedTitle = suggestChallengeTitle({
-      durationDays: requestedDuration,
-      category: selectedCategory,
-    });
-    const nextSuggestedDescription = suggestChallengeDescription({
-      durationDays: requestedDuration,
-      category: selectedCategory,
-      difficulty: selectedDifficulty,
-    });
-
-    const currentTitle = String(allValues.title || '');
-    const currentDescription = String(allValues.description || '');
-    const nextFields = {};
-
-    if (!currentTitle.trim() || currentTitle === lastSuggestedTitleRef.current) {
-      nextFields.title = nextSuggestedTitle;
-    }
-
-    if (!currentDescription.trim() || currentDescription === lastSuggestedDescriptionRef.current) {
-      nextFields.description = nextSuggestedDescription;
-    }
-
-    lastSuggestedTitleRef.current = nextSuggestedTitle;
-    lastSuggestedDescriptionRef.current = nextSuggestedDescription;
-
-    if (Object.keys(nextFields).length > 0) {
-      form.setFieldsValue(nextFields);
-    }
-  };
-
   const handleAdd = () => {
     setEditingChallenge(null);
     form.resetFields();
@@ -301,13 +266,8 @@ const Challenges = () => {
     setThumbnailCleared(false);
     setPlanDays([]);
     setActiveDayIndex(null);
-    const initialValues = {
-      durationDays: PLAN_GENERATION_DEFAULTS.durationDays,
-      points: 100,
-      status: PLAN_GENERATION_DEFAULTS.status,
-    };
-    form.setFieldsValue(initialValues);
-    applyLiveChallengeSuggestions(initialValues);
+    lastSuggestedTitleRef.current = '';
+    lastSuggestedDescriptionRef.current = '';
     void loadWorkoutLibrary();
     setIsModalVisible(true);
   };
@@ -806,20 +766,15 @@ const Challenges = () => {
         </div>
       )}
 
-      <Drawer
+      <Modal
         title={<span className="text-slate-900">{editingChallenge ? 'Edit Challenge' : 'Add New Challenge'}</span>}
         open={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
         destroyOnHidden
-        placement="right"
         width={920}
         className="workout-modal"
         styles={{
-          body: {
-            paddingTop: 12,
-            paddingBottom: 24,
-            background: 'linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%)',
-          },
           header: {
             borderBottom: '1px solid rgba(226, 232, 240, 0.9)',
             paddingInline: 24,
@@ -829,33 +784,19 @@ const Challenges = () => {
           content: {
             background: '#f8fafc',
           },
+          body: {
+            paddingTop: 12,
+            paddingBottom: 24,
+            background: 'linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%)',
+          },
         }}
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          onValuesChange={(changedValues, allValues) => {
-            if (changedValues.durationDays !== undefined) {
-              applyLiveChallengeSuggestions(allValues);
-            }
-          }}
           className="mt-4"
         >
-          <div className="mb-5 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur">
-            <div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">Challenge Setup</p>
-                <h3 className="mt-1 text-lg font-semibold text-slate-900">
-                  {editingChallenge ? 'Refine the challenge details' : 'Create a new challenge'}
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Keep the core info and thumbnail aligned with the rest of the dashboard.
-                </p>
-              </div>
-            </div>
-          </div>
-
           <Form.Item
             name="title"
             label={<span className="font-medium text-slate-700">Challenge Title</span>}
@@ -888,7 +829,7 @@ const Challenges = () => {
                 label={<span className="font-medium text-slate-700">Duration Days</span>}
                 rules={[{ required: true, message: 'Please input the duration' }]}
               >
-                <InputNumber min={1} max={365} className="w-full" />
+                <InputNumber min={1} max={365} placeholder="e.g. 7" className="w-full" />
               </Form.Item>
 
               <Form.Item
@@ -896,7 +837,7 @@ const Challenges = () => {
                 label={<span className="font-medium text-slate-700">Points</span>}
                 rules={[{ required: true, message: 'Please input the points' }]}
               >
-                <InputNumber min={0} max={100000} className="w-full" />
+                <InputNumber min={0} max={100000} placeholder="e.g. 500" className="w-full" />
               </Form.Item>
             </div>
 
@@ -913,19 +854,48 @@ const Challenges = () => {
                   <Select.Option value="ARCHIVED">ARCHIVED</Select.Option>
                 </Select>
               </Form.Item>
+
+              <Form.Item label={<span className="font-medium text-slate-700">Thumbnail</span>}>
+                <div className="flex flex-col gap-2">
+                  <Upload
+                    accept="image/png,image/jpeg,image/webp"
+                    beforeUpload={() => false}
+                    multiple={false}
+                    fileList={thumbnailFileList}
+                    onChange={handleThumbnailChange}
+                    onRemove={() => {
+                      handleThumbnailRemove();
+                      return false;
+                    }}
+                    showUploadList={false}
+                    className="w-full"
+                  >
+                    <button
+                      type="button"
+                      className="flex h-10 w-full items-center gap-3 overflow-hidden rounded-xl border border-slate-200 bg-white px-4 text-slate-500 shadow-sm transition hover:border-blue-300 hover:text-blue-600"
+                    >
+                      {thumbnailPreview ? (
+                        <>
+                          <img src={thumbnailPreview} alt="Challenge thumbnail preview" className="h-6 w-6 rounded-md object-cover" />
+                          <span className="text-sm font-medium text-slate-700">Change thumbnail</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiImage size={18} />
+                          <span className="text-sm font-medium text-slate-700">Upload thumbnail</span>
+                        </>
+                      )}
+                    </button>
+                  </Upload>
+                  {thumbnailPreview ? (
+                    <Button danger type="text" className="self-start px-0" onClick={handleThumbnailRemove}>
+                      Remove thumbnail
+                    </Button>
+                  ) : null}
+                </div>
+              </Form.Item>
             </div>
           </div>
-
-          <ThumbnailUploadField
-            eyebrow="Thumbnail"
-            title="Upload the challenge cover image"
-            fileList={thumbnailFileList}
-            onChange={handleThumbnailChange}
-            onRemove={handleThumbnailRemove}
-            previewSrc={thumbnailPreview}
-            previewAlt="Challenge thumbnail preview"
-            className="mt-6"
-          />
 
           <div className="mt-8 flex justify-end gap-3 border-t border-slate-200/80 pt-6">
             <Button size="large" onClick={() => setIsModalVisible(false)} className="border-slate-200 bg-white text-slate-700 shadow-sm hover:border-slate-300 hover:bg-slate-50">
@@ -936,7 +906,7 @@ const Challenges = () => {
             </Button>
           </div>
         </Form>
-      </Drawer>
+      </Modal>
 
       <Modal
         title={<span className="text-slate-900">{activeDay ? `Edit Day ${activeDay.day_number}` : 'Edit Day'}</span>}
