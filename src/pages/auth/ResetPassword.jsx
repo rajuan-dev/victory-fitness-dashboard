@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
+import { getResetToken, resetPasswordWithToken, storeResetEmail, storeResetToken } from "../../../services/auth.service";
 
 function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
@@ -15,27 +16,12 @@ function ResetPassword() {
   const [resetToken, setResetToken] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem('resetToken');
+    const token = getResetToken();
     if (token) {
-      try {
-        const decoded = JSON.parse(atob(token.split('.')[1]));
-        const expirationTime = decoded.exp * 1000;
-        const currentTime = Date.now();
-        const isExpired = expirationTime < currentTime;
-
-
-        if (isExpired) {
-          localStorage.removeItem('resetToken');
-          setResetToken("");
-          setError("Your reset session has expired. Please request a new password reset.");
-        } else {
-          setResetToken(token);
-        }
-      } catch (err) {
-        setResetToken("");
-      }
+      setResetToken(token);
     } else {
       setResetToken("");
+      setError("Your reset session has expired. Please request a new password reset.");
     }
   }, []);
 
@@ -55,15 +41,25 @@ function ResetPassword() {
       setError("Passwords do not match");
       return;
     }
+    if (!resetToken) {
+      setError("Your reset session has expired. Please request a new password reset.");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      // Mock API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await resetPasswordWithToken({
+        resetToken,
+        newPassword: formData.password,
+      });
+      storeResetToken({ resetToken: "" });
+      storeResetEmail("");
+      localStorage.removeItem("resetToken");
+      localStorage.removeItem("resetEmail");
       navigate("/sign-in");
     } catch (err) {
       console.error("Password reset failed:", err);
-      setError("Failed to reset password. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to reset password. Please try again.");
     } finally {
       setIsLoading(false);
     }

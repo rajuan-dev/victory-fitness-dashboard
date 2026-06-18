@@ -1,16 +1,41 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, Switch, Button, message, Popconfirm, InputNumber } from 'antd';
-import { globalDemoData } from '../../utils/demoData';
 import { FiEdit, FiTrash2, FiPlus, FiCheck } from 'react-icons/fi';
-import { FaMedal, FaRegGem, FaRegCircle } from 'react-icons/fa';
+import { FaMedal, FaRegCircle } from 'react-icons/fa';
 import { IoDiamond } from "react-icons/io5";
+import {
+  createAdminSubscriptionPlan,
+  deleteAdminSubscriptionPlan,
+  listAdminSubscriptionPlans,
+  updateAdminSubscriptionPlan,
+} from '../../../services/admin-content.service';
 
 const Subscriptions = () => {
-  const [plans, setPlans] = useState(globalDemoData.subscriptions || []);
+  const [plans, setPlans] = useState([]);
   const [isYearly, setIsYearly] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPlans = async () => {
+      try {
+        const response = await listAdminSubscriptionPlans();
+        if (isMounted) {
+          setPlans(Array.isArray(response?.items) ? response.items : []);
+        }
+      } catch (error) {
+        message.error(error.message || 'Failed to load subscription plans');
+      }
+    };
+
+    loadPlans();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleAdd = () => {
     setEditingPlan(null);
@@ -26,27 +51,34 @@ const Subscriptions = () => {
     setIsModalVisible(true);
   };
 
-  const handleDelete = (id) => {
-    setPlans(prev => prev.filter(p => p.id !== id));
-    message.success('Plan deleted successfully (Demo)');
-  };
-
-  const handleSubmit = (values) => {
-    if (editingPlan) {
-      setPlans(prev => prev.map(p => p.id === editingPlan.id ? { ...p, ...values } : p));
-      message.success('Plan updated successfully (Demo)');
-    } else {
-      const newPlan = {
-        id: Date.now().toString(),
-        ...values,
-      };
-      setPlans([...plans, newPlan]);
-      message.success('Plan added successfully (Demo)');
+  const handleDelete = async (id) => {
+    try {
+      await deleteAdminSubscriptionPlan(id);
+      setPlans(prev => prev.filter(p => p.id !== id));
+      message.success('Plan deleted successfully');
+    } catch (error) {
+      message.error(error.message || 'Failed to delete plan');
     }
-    setIsModalVisible(false);
   };
 
-  const getIcon = (type, isGold) => {
+  const handleSubmit = async (values) => {
+    try {
+      if (editingPlan) {
+        const updated = await updateAdminSubscriptionPlan(editingPlan.id, values);
+        setPlans(prev => prev.map(p => p.id === editingPlan.id ? updated : p));
+        message.success('Plan updated successfully');
+      } else {
+        const created = await createAdminSubscriptionPlan(values);
+        setPlans(prev => [...prev, created]);
+        message.success('Plan added successfully');
+      }
+      setIsModalVisible(false);
+    } catch (error) {
+      message.error(error.message || 'Failed to save plan');
+    }
+  };
+
+  const getIcon = (type) => {
     switch (type) {
       case 'silver_medal': return <span className="bg-[#b4b4bb] p-2 rounded-full inline-flex"><FaMedal size={20} className="text-white" /></span>;
       case 'gold_medal': return <span className="bg-[#fbbf24] p-2 rounded-full inline-flex"><FaMedal size={20} className="text-white" /></span>;

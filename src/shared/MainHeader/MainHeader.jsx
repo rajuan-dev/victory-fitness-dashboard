@@ -1,17 +1,15 @@
-/* eslint-disable react/prop-types */
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IoMenu, IoNotificationsOutline } from "react-icons/io5";
-import { globalDemoData } from "../../utils/demoData";
 import { adminApiRequest, getUserData, storeUserInfo } from "../../../services/auth.service";
+import { listAdminNotifications } from "../../../services/admin-content.service";
 
 
 const MainHeader = ({ toggleSidebar }) => {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(getUserData());
   const [isLoading, setIsLoading] = useState(true);
-  const notificationData = globalDemoData.notifications;
+  const [notificationCount, setNotificationCount] = useState(0);
   const displayName =
     currentUser?.fullName ||
     currentUser?.name ||
@@ -30,7 +28,10 @@ const MainHeader = ({ toggleSidebar }) => {
     const loadAdminProfile = async () => {
       setIsLoading(true);
       try {
-        const response = await adminApiRequest("/admin/me");
+        const [response, notificationsResponse] = await Promise.all([
+          adminApiRequest("/admin/me"),
+          listAdminNotifications().catch(() => ({ items: [] })),
+        ]);
         if (!isMounted) {
           return;
         }
@@ -47,6 +48,11 @@ const MainHeader = ({ toggleSidebar }) => {
         };
         storeUserInfo(nextUser);
         setCurrentUser(nextUser);
+        setNotificationCount(
+          Array.isArray(notificationsResponse?.items)
+            ? notificationsResponse.items.filter((item) => !item?.read).length
+            : 0,
+        );
       } catch {
         if (isMounted) {
           setCurrentUser(getUserData());
@@ -63,16 +69,21 @@ const MainHeader = ({ toggleSidebar }) => {
       loadAdminProfile();
     };
 
+    const syncNotifications = (event) => {
+      const items = Array.isArray(event?.detail) ? event.detail : [];
+      setNotificationCount(items.filter((item) => !item?.read).length);
+    };
+
     loadAdminProfile();
     window.addEventListener("admin-profile-updated", syncHeaderProfile);
+    window.addEventListener("admin-notifications-updated", syncNotifications);
 
     return () => {
       isMounted = false;
       window.removeEventListener("admin-profile-updated", syncHeaderProfile);
+      window.removeEventListener("admin-notifications-updated", syncNotifications);
     };
   }, []);
-
-  const notificationCount = notificationData?.filter((item) => !item?.read).length || 0;
 
   return (
     <div className="relative w-full px-3 sm:px-4 lg:px-5">

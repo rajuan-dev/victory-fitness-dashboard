@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, message, Popconfirm, Button } from 'antd';
-import { globalDemoData } from '../../utils/demoData';
 import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
 import { FaGraduationCap } from 'react-icons/fa';
 import ThumbnailUploadField from "../../components/dashboard/ThumbnailUploadField";
 import { toBase64Payload } from "../../utils/imageUpload";
+import {
+  createAdminMasterclass,
+  deleteAdminMasterclass,
+  listAdminMasterclasses,
+  updateAdminMasterclass,
+} from '../../../services/admin-content.service';
 
 const DEFAULT_MASTERCLASS_THUMBNAIL = "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=300&auto=format&fit=crop";
 
 const Masterclasses = () => {
-  const [masterclasses, setMasterclasses] = useState(globalDemoData.masterclasses || []);
+  const [masterclasses, setMasterclasses] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingMasterclass, setEditingMasterclass] = useState(null);
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
@@ -17,6 +22,26 @@ const Masterclasses = () => {
   const [thumbnailFileList, setThumbnailFileList] = useState([]);
   const [thumbnailCleared, setThumbnailCleared] = useState(false);
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMasterclasses = async () => {
+      try {
+        const response = await listAdminMasterclasses();
+        if (isMounted) {
+          setMasterclasses(Array.isArray(response?.items) ? response.items : []);
+        }
+      } catch (error) {
+        message.error(error.message || 'Failed to load masterclasses');
+      }
+    };
+
+    loadMasterclasses();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleAdd = () => {
     setEditingMasterclass(null);
@@ -73,12 +98,17 @@ const Masterclasses = () => {
     form.resetFields();
   };
 
-  const handleDelete = (id) => {
-    setMasterclasses(prev => prev.filter(c => c.id !== id));
-    message.success('Masterclass deleted successfully (Demo)');
+  const handleDelete = async (id) => {
+    try {
+      await deleteAdminMasterclass(id);
+      setMasterclasses(prev => prev.filter(c => c.id !== id));
+      message.success('Masterclass deleted successfully');
+    } catch (error) {
+      message.error(error.message || 'Failed to delete masterclass');
+    }
   };
 
-  const handleSubmit = (values) => {
+  const handleSubmit = async (values) => {
     const nextThumbnail = selectedThumbnail
       ? selectedThumbnail.preview
       : (thumbnailCleared ? '' : (thumbnailPreview || editingMasterclass?.thumbnailUrl || DEFAULT_MASTERCLASS_THUMBNAIL));
@@ -87,19 +117,23 @@ const Masterclasses = () => {
       thumbnailUrl: nextThumbnail,
     };
 
-    if (editingMasterclass) {
-      setMasterclasses(prev => prev.map(c => c.id === editingMasterclass.id ? { ...c, ...payload } : c));
-      message.success('Masterclass updated successfully (Demo)');
-    } else {
-      const newMasterclass = {
-        id: Date.now().toString(),
-        ...payload,
-        thumbnailUrl: payload.thumbnailUrl || DEFAULT_MASTERCLASS_THUMBNAIL,
-      };
-      setMasterclasses([newMasterclass, ...masterclasses]);
-      message.success('Masterclass added successfully (Demo)');
+    try {
+      if (editingMasterclass) {
+        const updated = await updateAdminMasterclass(editingMasterclass.id, payload);
+        setMasterclasses(prev => prev.map(c => c.id === editingMasterclass.id ? updated : c));
+        message.success('Masterclass updated successfully');
+      } else {
+        const created = await createAdminMasterclass({
+          ...payload,
+          thumbnailUrl: payload.thumbnailUrl || DEFAULT_MASTERCLASS_THUMBNAIL,
+        });
+        setMasterclasses(prev => [created, ...prev]);
+        message.success('Masterclass added successfully');
+      }
+      closeMasterclassModal();
+    } catch (error) {
+      message.error(error.message || 'Failed to save masterclass');
     }
-    closeMasterclassModal();
   };
 
   return (

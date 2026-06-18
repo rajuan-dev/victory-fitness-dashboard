@@ -1,10 +1,9 @@
 import { ConfigProvider, Modal, Table, Spin, message } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IoSearch, IoChevronBack } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { FaRegEye } from "react-icons/fa";
 import { AiOutlineDelete } from "react-icons/ai";
-import { globalDemoData } from "../../utils/demoData";
 import DetailModal from "../../components/dashboard/DetailModal";
 import {
   formatDisplayDate,
@@ -12,6 +11,8 @@ import {
   formatEnumLabel,
   getStatusBadgeClassName,
 } from "../../utils/dashboardFormatters";
+import { listAdminSubscribers } from "../../../services/admin-content.service";
+import { deleteAdminUser } from "../../../services/admin-users.service";
 
 const getSubscriberDetailSections = (user) => [
   {
@@ -52,12 +53,37 @@ function AllSubscribers() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [usersData, setUsersData] = useState(globalDemoData.subscribers || []);
+  const [usersData, setUsersData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
+  useEffect(() => {
+    let isMounted = true;
 
-  const meta = { total: usersData.length };
-  const isLoading = false;
-  const isDeleting = false;
+    const loadSubscribers = async () => {
+      setIsLoading(true);
+      try {
+        const response = await listAdminSubscribers({ limit: 250 });
+        if (isMounted) {
+          setUsersData(Array.isArray(response?.users) ? response.users : []);
+        }
+      } catch (err) {
+        console.error("Failed to load subscribers:", err);
+        if (isMounted) {
+          message.error(err.message || "Failed to load subscribers");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadSubscribers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
 
   const handleCancel = () => {
@@ -82,13 +108,17 @@ function AllSubscribers() {
 
   const confirmDelete = async () => {
     try {
-      setUsersData(usersData.filter(user => user.id !== selectedUser.id));
-      message.success("Subscriber deleted successfully (Demo)");
+      setIsDeleting(true);
+      await deleteAdminUser(selectedUser.id);
+      setUsersData((prev) => prev.filter((user) => user.id !== selectedUser.id));
+      message.success("Subscriber deleted successfully");
       setIsModalOpen(false);
       setSelectedUser(null);
     } catch (err) {
       console.error("Failed to delete subscriber:", err);
-      message.error("Failed to delete subscriber");
+      message.error(err.message || "Failed to delete subscriber");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -114,7 +144,7 @@ function AllSubscribers() {
         </div>
       ),
     },
-    { title: "Tier", dataIndex: "subscriptionTier", key: "subscriptionTier" },
+    { title: "Tier", dataIndex: "subscriptionTier", key: "subscriptionTier", render: (value) => formatEnumLabel(value) },
     { title: "Email", dataIndex: "email", key: "email" },
     { title: "Phone No", dataIndex: "contactNumber", key: "contactNumber" },
     {
@@ -149,6 +179,7 @@ function AllSubscribers() {
     );
   }, [usersData, searchQuery]);
 
+  const meta = { total: filteredData.length };
   const detailSections = selectedUser ? getSubscriberDetailSections(selectedUser) : [];
   const joinedLabel = selectedUser ? formatDisplayDate(selectedUser.joinedDate) : "N/A";
 
