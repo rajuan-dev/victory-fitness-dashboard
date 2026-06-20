@@ -6,7 +6,6 @@ import { adminApiRequest } from '../../../services/auth.service';
 import { toBase64Payload } from "../../utils/imageUpload";
 
 const challengeStatusFilters = ['ALL', 'ACTIVE', 'UPCOMING', 'DRAFT', 'ARCHIVED'];
-const challengeDurationOptions = [3, 5, 7, 14, 21];
 const challengeGoalTypeOptions = ['Strength', 'Cardio', 'Mindfulness', 'Nutrition', 'Family'];
 const challengeInputClassName =
   'rounded-xl border-slate-200 bg-white text-slate-800 shadow-sm placeholder:text-slate-400 hover:border-blue-300 focus:border-blue-500';
@@ -879,15 +878,9 @@ const Challenges = () => {
               <Form.Item
                 name="durationDays"
                 label={<span className="font-medium text-slate-700">Duration Days</span>}
-                rules={[{ required: true, message: 'Please select the duration' }]}
+                rules={[{ required: true, message: 'Please input the duration' }]}
               >
-                <Select placeholder="Select duration" size="large">
-                  {challengeDurationOptions.map((days) => (
-                    <Select.Option key={days} value={days}>
-                      {days} Days
-                    </Select.Option>
-                  ))}
-                </Select>
+                <InputNumber min={1} max={365} placeholder="e.g. 7" className="w-full" />
               </Form.Item>
 
               <Form.Item
