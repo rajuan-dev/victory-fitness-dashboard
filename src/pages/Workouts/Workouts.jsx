@@ -7,6 +7,7 @@ import {
   deleteAdminWorkout,
   listAdminWorkouts,
   syncAdminWorkouts,
+  uploadAdminWorkoutVideo,
   updateAdminWorkout,
 } from "../../../services/admin-workouts.service";
 import ThumbnailUploadField from "../../components/dashboard/ThumbnailUploadField";
@@ -240,11 +241,12 @@ const Workouts = () => {
     }
 
     try {
-      const payload = await toBase64Payload(file, "workout-video.mp4", {
-        base64Key: "video_base64",
-        mimeTypeKey: "video_mime_type",
-        fileNameKey: "video_file_name",
-      });
+      const payload = {
+        file,
+        video_mime_type: file.type || "video/mp4",
+        video_file_name: file.name || "workout-video.mp4",
+        preview: URL.createObjectURL(file),
+      };
       setSelectedVideo(payload);
       form.setFieldsValue({
         videoSource: "UPLOAD",
@@ -257,12 +259,18 @@ const Workouts = () => {
   };
 
   const handleVideoRemove = () => {
+    if (selectedVideo?.preview?.startsWith?.("blob:")) {
+      URL.revokeObjectURL(selectedVideo.preview);
+    }
     setSelectedVideo(null);
     setVideoFileList([]);
     form.setFieldValue("videoUrl", "");
   };
 
   const closeWorkoutModal = () => {
+    if (selectedVideo?.preview?.startsWith?.("blob:")) {
+      URL.revokeObjectURL(selectedVideo.preview);
+    }
     setIsModalVisible(false);
     setEditingWorkout(null);
     setSelectedThumbnail(null);
@@ -290,18 +298,23 @@ const Workouts = () => {
   };
 
   const handleSubmit = async (values) => {
+    let uploadedVideoUrl = values.videoUrl || "";
+    if (selectedVideo?.file) {
+      uploadedVideoUrl = await uploadAdminWorkoutVideo(selectedVideo.file);
+    }
+
     const nextThumbnail = selectedThumbnail
       ? (editingWorkout?.thumbnail || "")
       : (thumbnailCleared ? "" : (thumbnailPreview || editingWorkout?.thumbnail || DEFAULT_THUMBNAIL));
     const payload = {
       title: values.title,
       vimeoId: values.vimeoId,
-      videoUrl: selectedVideo?.preview ? "" : (values.videoUrl || ""),
+      videoUrl: uploadedVideoUrl,
       videoSource: values.videoSource || "VIMEO",
       tag: values.tag,
       visibility: values.visibility,
       thumbnail: nextThumbnail,
-      video_base64: selectedVideo?.video_base64 || null,
+      video_base64: null,
       video_mime_type: selectedVideo?.video_mime_type || "video/mp4",
       video_file_name: selectedVideo?.video_file_name || null,
       image_base64: selectedThumbnail?.image_base64 || null,
