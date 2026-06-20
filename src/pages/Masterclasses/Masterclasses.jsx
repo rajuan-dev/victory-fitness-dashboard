@@ -18,9 +18,12 @@ const Masterclasses = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingMasterclass, setEditingMasterclass] = useState(null);
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
+  const [selectedAudio, setSelectedAudio] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState('');
   const [thumbnailFileList, setThumbnailFileList] = useState([]);
+  const [audioFileList, setAudioFileList] = useState([]);
   const [thumbnailCleared, setThumbnailCleared] = useState(false);
+  const [audioCleared, setAudioCleared] = useState(false);
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -47,9 +50,12 @@ const Masterclasses = () => {
     setEditingMasterclass(null);
     form.resetFields();
     setSelectedThumbnail(null);
+    setSelectedAudio(null);
     setThumbnailPreview('');
     setThumbnailFileList([]);
+    setAudioFileList([]);
     setThumbnailCleared(false);
+    setAudioCleared(false);
     setIsModalVisible(true);
   };
 
@@ -57,9 +63,12 @@ const Masterclasses = () => {
     setEditingMasterclass(mcs);
     form.setFieldsValue(mcs);
     setSelectedThumbnail(null);
+    setSelectedAudio(null);
     setThumbnailPreview(mcs.thumbnailUrl || '');
     setThumbnailFileList([]);
+    setAudioFileList([]);
     setThumbnailCleared(false);
+    setAudioCleared(false);
     setIsModalVisible(true);
   };
 
@@ -88,13 +97,44 @@ const Masterclasses = () => {
     setThumbnailCleared(true);
   };
 
+  const handleAudioChange = async ({ fileList }) => {
+    setAudioFileList(fileList.slice(-1));
+    const file = fileList[fileList.length - 1]?.originFileObj;
+    if (!file) {
+      setSelectedAudio(null);
+      return;
+    }
+
+    try {
+      const payload = await toBase64Payload(file, "masterclass-audio.mp3", {
+        base64Key: "audio_base64",
+        mimeTypeKey: "audio_mime_type",
+        fileNameKey: "audio_file_name",
+      });
+      setSelectedAudio(payload);
+      setAudioCleared(false);
+      form.setFieldValue("audioUrl", "");
+    } catch {
+      message.error('Failed to read audio file');
+    }
+  };
+
+  const handleAudioRemove = () => {
+    setSelectedAudio(null);
+    setAudioFileList([]);
+    setAudioCleared(true);
+  };
+
   const closeMasterclassModal = () => {
     setIsModalVisible(false);
     setEditingMasterclass(null);
     setSelectedThumbnail(null);
+    setSelectedAudio(null);
     setThumbnailPreview('');
     setThumbnailFileList([]);
+    setAudioFileList([]);
     setThumbnailCleared(false);
+    setAudioCleared(false);
     form.resetFields();
   };
 
@@ -115,6 +155,8 @@ const Masterclasses = () => {
     const payload = {
       ...values,
       thumbnailUrl: nextThumbnail,
+      ...(selectedAudio || {}),
+      clear_audio: audioCleared,
     };
 
     try {
@@ -302,6 +344,29 @@ const Masterclasses = () => {
             >
               <Input className="bg-[#1e293b] border-[#334155] text-slate-100 hover:border-slate-400 focus:border-[#00e5ff] rounded-md h-10" />
             </Form.Item>
+          </div>
+
+          <div className="mb-6 rounded-xl border border-[#334155] bg-[#111827] p-4">
+            <div className="mb-2 text-[11px] font-black uppercase tracking-widest text-slate-300">AUDIO FILE (OPTIONAL)</div>
+            <input
+              type="file"
+              accept="audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/wav,audio/x-wav,audio/webm,audio/ogg,application/ogg"
+              onChange={(event) => handleAudioChange({ fileList: [{ originFileObj: event.target.files?.[0] }].filter((item) => item.originFileObj) })}
+              className="block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-[#00e5ff] file:px-4 file:py-2 file:font-bold file:text-[#0f172a] hover:file:bg-[#33ebfc]"
+            />
+            <p className="mt-2 text-xs text-slate-500">Upload MP3, M4A, WAV, OGG, or WEBM. Upload replaces the audio URL on save.</p>
+            {selectedAudio?.audio_file_name || editingMasterclass?.audioUrl ? (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[#334155] bg-[#0f172a] px-3 py-2 text-xs text-slate-300">
+                <span className="truncate">{selectedAudio?.audio_file_name || editingMasterclass?.audioUrl}</span>
+                <button
+                  type="button"
+                  onClick={handleAudioRemove}
+                  className="rounded-md border border-rose-500/30 px-2 py-1 text-rose-300 hover:bg-rose-500/10"
+                >
+                  Remove audio
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {/* Row 5 */}
