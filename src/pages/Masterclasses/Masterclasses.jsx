@@ -19,6 +19,10 @@ const MASTERCLASS_VIDEO_OPTIONS = [
   { label: "Vimeo", value: "VIMEO" },
 ];
 
+const isDirectMasterclassVideoUrl = (videoUrl) =>
+  /^https?:\/\/.+\.(mp4|mov|m4v|webm)(\?.*)?$/i.test(String(videoUrl || "").trim()) ||
+  String(videoUrl || "").includes("/masterclass-videos/");
+
 const inferMasterclassVideoSource = (videoSource, videoUrl) => {
   const normalizedSource = String(videoSource || "").trim().toUpperCase();
   if (normalizedSource) {
@@ -55,6 +59,10 @@ const normalizeMasterclassVideoPreviewUrl = (source, rawVideoUrl) => {
   const videoUrl = String(rawVideoUrl || "").trim();
 
   try {
+    if (isDirectMasterclassVideoUrl(videoUrl)) {
+      return videoUrl;
+    }
+
     if (videoSource === "UPLOAD") {
       return videoUrl;
     }
@@ -557,11 +565,11 @@ const Masterclasses = () => {
               name="videoUrl"
               label={<span className="font-black text-[11px] uppercase tracking-widest text-slate-300">VIDEO URL</span>}
               className="mb-6"
-              extra={<span className="text-xs text-slate-500">Paste a public {String(watchedVideoSource).toUpperCase() === "YOUTUBE" ? "YouTube" : "Vimeo"} URL. It will be normalized and stored in the database.</span>}
+              extra={<span className="text-xs text-slate-500">Paste a YouTube, Vimeo, or direct MP4/MOV/WEBM URL. Direct files will be downloaded to S3 and stored like uploaded videos.</span>}
               rules={[
                 {
                   required: true,
-                  message: `Please enter a ${String(watchedVideoSource).toUpperCase() === "YOUTUBE" ? "YouTube" : "Vimeo"} URL!`,
+                  message: "Please enter a video URL!",
                 },
               ]}
             >
@@ -599,7 +607,7 @@ const Masterclasses = () => {
               name="audioUrl"
               label={<span className="font-black text-[11px] uppercase tracking-widest text-slate-300">AUDIO URL (OPTIONAL)</span>}
               className="mb-4"
-              extra={<span className="text-xs text-slate-500">Use this only for an external hosted audio lesson. If you upload an audio file below, that S3 URL replaces this field on save.</span>}
+              extra={<span className="text-xs text-slate-500">Use this for a direct audio file URL if needed. If you upload an audio file below, that S3 URL replaces this field on save.</span>}
             >
               <Input className="bg-[#1e293b] border-[#334155] text-slate-100 hover:border-slate-400 focus:border-[#00e5ff] rounded-md h-10" />
             </Form.Item>

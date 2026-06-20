@@ -41,6 +41,9 @@ const getVideoRenderMode = (url) => {
   ) {
     return 'embed';
   }
+  if (/\.(mp4|mov|m4v|webm|mp3|m4a|wav|ogg)(\?|$)/i.test(normalizedUrl)) {
+    return 'direct';
+  }
   return 'direct';
 };
 
@@ -89,9 +92,11 @@ const getExternalVideoLinkError = (message) => {
     normalized === 'Only valid YouTube and Vimeo links are supported' ||
     normalized === 'That YouTube link is not valid' ||
     normalized === 'That Vimeo link is not valid' ||
-    normalized === 'Video link is empty'
+    normalized === 'Video link is empty' ||
+    normalized === 'Use a direct media file URL if you want the file stored in S3' ||
+    normalized === 'Only direct media file URLs can be stored in S3'
   ) {
-    return 'Use a valid YouTube or Vimeo link. Supported: YouTube watch/share/shorts and Vimeo links.';
+    return 'Use a valid video link. Supported: YouTube, Vimeo, or a direct MP4/MOV/WEBM file URL.';
   }
   return normalized || 'Failed to save community post';
 };
@@ -345,11 +350,11 @@ const Community = () => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">YouTube or Vimeo Link</label>
+          <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">Video Link</label>
           <input
             type="url"
             value={externalVideoUrl}
-            placeholder="Paste a YouTube or Vimeo link"
+            placeholder="Paste a YouTube, Vimeo, or direct video file URL"
             onChange={(e) => {
               const value = e.target.value;
               setExternalVideoUrl(value);
@@ -361,7 +366,7 @@ const Community = () => {
             className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-3 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 placeholder:text-slate-500"
           />
           <p className="mt-2 text-[11px] leading-4 text-slate-500">
-            Supported: YouTube watch/share/shorts and Vimeo links.
+            Supported: YouTube watch/share/shorts, Vimeo links, and direct MP4/MOV/WEBM file URLs.
           </p>
         </div>
 
@@ -390,14 +395,22 @@ const Community = () => {
 
         {!mediaPreview && externalVideoUrl ? (
           <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3">
-            <iframe
-              src={normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl}
-              title="External community video preview"
-              className="w-full h-64 rounded-lg bg-black"
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
+            {getVideoRenderMode(normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl) === 'embed' ? (
+              <iframe
+                src={normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl}
+                title="External community video preview"
+                className="w-full h-64 rounded-lg bg-black"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            ) : (
+              <video
+                src={externalVideoUrl}
+                controls
+                className="w-full max-h-64 rounded-lg bg-black"
+              />
+            )}
             <div className="mt-3 flex justify-end">
               <button
                 type="button"

@@ -21,12 +21,20 @@ const WORKOUT_VIDEO_OPTIONS = [
   { label: "Vimeo", value: "VIMEO" },
 ];
 
+const isDirectWorkoutVideoUrl = (videoUrl) =>
+  /^https?:\/\/.+\.(mp4|mov|m4v|webm)(\?.*)?$/i.test(String(videoUrl || "").trim()) ||
+  String(videoUrl || "").includes("/workout-videos/");
+
 const normalizeWorkoutVideoPreviewUrl = (source, rawVideoUrl, rawVimeoId) => {
   const videoSource = String(source || "VIMEO").trim().toUpperCase();
   const videoUrl = String(rawVideoUrl || "").trim();
   const vimeoId = String(rawVimeoId || "").trim();
 
   try {
+    if (isDirectWorkoutVideoUrl(videoUrl)) {
+      return videoUrl;
+    }
+
     if (videoSource === "UPLOAD") {
       return videoUrl;
     }
@@ -555,15 +563,15 @@ const Workouts = () => {
 
           <Form.Item
             name="videoUrl"
-            label={<span className="font-medium text-slate-700">{watchedVideoSource === "YOUTUBE" ? "YouTube URL" : "Vimeo URL"}</span>}
+            label={<span className="font-medium text-slate-700">Video URL</span>}
             rules={
               watchedVideoSource === "UPLOAD"
                 ? []
-                : [{ required: !watchedVimeoId, message: watchedVideoSource === "YOUTUBE" ? "Please input the YouTube URL!" : "Please input the Vimeo URL!" }]
+                : [{ required: !watchedVimeoId, message: watchedVideoSource === "YOUTUBE" ? "Please input the video URL!" : "Please input the video URL!" }]
             }
             hidden={watchedVideoSource === "UPLOAD"}
           >
-            <Input placeholder={watchedVideoSource === "YOUTUBE" ? "https://youtube.com/watch?v=..." : "https://vimeo.com/..."} className="py-2" />
+            <Input placeholder="YouTube, Vimeo, or direct MP4/MOV/WEBM URL" className="py-2" />
           </Form.Item>
 
           <Form.Item
@@ -584,7 +592,7 @@ const Workouts = () => {
                 onChange={(event) => handleVideoChange({ fileList: [{ originFileObj: event.target.files?.[0] }].filter((item) => item.originFileObj) })}
                 className="block w-full text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-500"
               />
-              <p className="mt-2 text-xs text-slate-500">Upload MP4, MOV, or WEBM directly from your device. The video will be stored like previous S3-hosted videos.</p>
+              <p className="mt-2 text-xs text-slate-500">Upload MP4, MOV, or WEBM directly from your device. You can also paste a direct video file URL in the URL field above and it will be downloaded to S3.</p>
               {selectedVideo?.video_file_name ? (
                 <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
                   <span className="truncate">{selectedVideo.video_file_name}</span>
