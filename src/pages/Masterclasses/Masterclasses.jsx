@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Form, Input, Select, message, Popconfirm, Button } from 'antd';
 import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
-import { FaGraduationCap } from 'react-icons/fa';
+import { FaPlayCircle } from 'react-icons/fa';
 import ThumbnailUploadField from "../../components/dashboard/ThumbnailUploadField";
 import { toBase64Payload } from "../../utils/imageUpload";
 import {
@@ -117,7 +117,9 @@ const normalizeCategoryValue = (value) => {
 const Masterclasses = () => {
   const [masterclasses, setMasterclasses] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [editingMasterclass, setEditingMasterclass] = useState(null);
+  const [previewMasterclass, setPreviewMasterclass] = useState(null);
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [selectedAudio, setSelectedAudio] = useState(null);
@@ -304,6 +306,16 @@ const Masterclasses = () => {
     form.resetFields();
   };
 
+  const openPreview = (masterclass) => {
+    setPreviewMasterclass(masterclass);
+    setIsPreviewVisible(true);
+  };
+
+  const closePreview = () => {
+    setIsPreviewVisible(false);
+    setPreviewMasterclass(null);
+  };
+
   const handleDelete = async (id) => {
     try {
       await deleteAdminMasterclass(id);
@@ -379,9 +391,14 @@ const Masterclasses = () => {
             <div key={mcs.id} className="bg-[#1e293b] border border-[#334155] rounded-xl p-3 flex items-center gap-4 group hover:bg-[#253245] hover:border-slate-500 transition-all relative">
               <div className="relative w-24 h-16 shrink-0 rounded-md overflow-hidden bg-slate-700">
                 <img src={mcs.thumbnailUrl} alt={mcs.title} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-[#00e5ff]">
-                  <FaGraduationCap className="text-2xl drop-shadow-md" />
-                </div>
+                <button
+                  type="button"
+                  onClick={() => openPreview(mcs)}
+                  className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-[#00e5ff]"
+                  title="Preview masterclass"
+                >
+                  <FaPlayCircle className="text-2xl drop-shadow-md" />
+                </button>
               </div>
 
               <div className="flex flex-col flex-1 min-w-0 pr-6">
@@ -637,6 +654,58 @@ const Masterclasses = () => {
             </Button>
           </div>
         </Form>
+      </Modal>
+
+      <Modal
+        title={<span className="text-slate-100 font-bold text-lg select-none">{previewMasterclass?.title || "Masterclass Preview"}</span>}
+        open={isPreviewVisible}
+        onCancel={closePreview}
+        footer={null}
+        destroyOnClose
+        width={820}
+        closeIcon={<span className="text-slate-400 hover:text-white text-xl">x</span>}
+        className="dark-modal-override"
+      >
+        {previewMasterclass ? (
+          <div className="space-y-4 pt-2">
+            <div className="overflow-hidden rounded-xl border border-[#334155] bg-[#0f172a]">
+              {isDirectVideoUrl(previewMasterclass.videoUrl) ? (
+                <video
+                  controls
+                  playsInline
+                  preload="metadata"
+                  src={previewMasterclass.videoUrl}
+                  className="aspect-video w-full bg-black"
+                />
+              ) : (
+                <iframe
+                  title={`${previewMasterclass.title} preview`}
+                  src={normalizeMasterclassVideoPreviewUrl(
+                    inferMasterclassVideoSource(previewMasterclass.videoSource, previewMasterclass.videoUrl),
+                    previewMasterclass.videoUrl,
+                  )}
+                  className="aspect-video w-full bg-black"
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              )}
+            </div>
+
+            {previewMasterclass.audioUrl ? (
+              <div className="rounded-xl border border-[#334155] bg-[#111827] p-4">
+                <div className="mb-2 text-[11px] font-black uppercase tracking-widest text-slate-300">AUDIO</div>
+                <audio controls className="w-full" src={previewMasterclass.audioUrl} />
+              </div>
+            ) : null}
+
+            {previewMasterclass.description ? (
+              <div className="rounded-xl border border-[#334155] bg-[#111827] p-4 text-sm text-slate-300">
+                {previewMasterclass.description}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </Modal>
 
       <style dangerouslySetInnerHTML={{ __html: `
