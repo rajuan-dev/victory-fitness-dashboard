@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getResetEmail, verifyPasswordResetCode } from "../../../services/auth.service";
 
 function VerificationCode() {
   const [code, setCode] = useState(new Array(4).fill(""));
@@ -36,15 +37,15 @@ function VerificationCode() {
     
     setIsLoading(true);
     try {
-      // Mock API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Mock successful verification
-      localStorage.setItem('resetToken', "demo-reset-token");
+      const email = getResetEmail();
+      if (!email) {
+        throw new Error("Reset email is missing. Start the password reset flow again.");
+      }
+      await verifyPasswordResetCode({ email, code: otp });
       navigate("/new-password");
     } catch (err) {
       console.error("OTP verification failed:", err);
-      setError("Invalid verification code. Please try again.");
+      setError(err instanceof Error ? err.message : "Invalid verification code. Please try again.");
     } finally {
       setIsLoading(false);
     }

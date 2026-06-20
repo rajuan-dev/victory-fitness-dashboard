@@ -6,6 +6,15 @@ import { FaRegEye } from "react-icons/fa";
 import { AiOutlineDelete } from "react-icons/ai";
 import TotalUsers from "../User Management/TotalUsers";
 import { deleteAdminUser, getAdminUser, getUserManagementOverview } from "../../../services/admin-users.service";
+import DetailModal from "../../components/dashboard/DetailModal";
+import {
+  addBillingCycleToDate,
+  formatBooleanLabel,
+  formatDisplayDate,
+  formatDisplayDateTime,
+  formatEnumLabel,
+  getStatusBadgeClassName,
+} from "../../utils/dashboardFormatters";
 
 function UserTableSkeleton() {
   return (
@@ -41,81 +50,6 @@ const DEFAULT_SUMMARY = {
   userChart: [],
 };
 
-const formatDisplayDate = (value) => {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "N/A";
-  }
-
-  return date.toLocaleDateString();
-};
-
-const formatDisplayDateTime = (value) => {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "N/A";
-  }
-
-  return date.toLocaleString();
-};
-
-const formatEnumLabel = (value) => {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    return "N/A";
-  }
-
-  return normalized
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-};
-
-const formatBooleanLabel = (value) => (value ? "Yes" : "No");
-
-const addBillingCycleToDate = (value, billingCycle) => {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  const normalizedCycle = String(billingCycle || "").toLowerCase();
-  if (normalizedCycle === "monthly") {
-    date.setMonth(date.getMonth() + 1);
-    return date;
-  }
-
-  if (normalizedCycle === "quarterly") {
-    date.setMonth(date.getMonth() + 3);
-    return date;
-  }
-
-  if (normalizedCycle === "weekly") {
-    date.setDate(date.getDate() + 7);
-    return date;
-  }
-
-  if (normalizedCycle === "yearly" || normalizedCycle === "annual") {
-    date.setFullYear(date.getFullYear() + 1);
-    return date;
-  }
-
-  return null;
-};
-
 const getSubscriptionExpiryLabel = (user) => {
   const directValue =
     user.subscription_expires_at ||
@@ -137,20 +71,6 @@ const getSubscriptionExpiryLabel = (user) => {
   const estimatedExpiry = addBillingCycleToDate(referenceDate, billingCycle);
 
   return estimatedExpiry ? formatDisplayDateTime(estimatedExpiry) : "N/A";
-};
-
-const getStatusBadgeClassName = (value) => {
-  const normalized = String(value || "").toUpperCase();
-
-  if (normalized === "ACTIVE") {
-    return "bg-green-400/30 text-green-100";
-  }
-
-  if (normalized === "PENDING") {
-    return "bg-amber-400/30 text-amber-100";
-  }
-
-  return "bg-red-400/30 text-red-100";
 };
 
 const getUserDetailCards = (user) => {
@@ -557,136 +477,24 @@ function UserDetails() {
         </div>
       </Modal>
 
-      <Modal
-        open={isViewModalOpen}
-        centered
-        onCancel={handleViewCancel}
-        footer={null}
-        width={1120}
-        style={{ maxWidth: "calc(100vw - 32px)" }}
-        styles={{
-          body: {
-            paddingTop: 12,
-            paddingBottom: 20,
-            background: "linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%)",
-          },
-          header: {
-            borderBottom: "1px solid rgba(226, 232, 240, 0.9)",
-            paddingInline: 24,
-            paddingBlock: 18,
-            background: "rgba(255, 255, 255, 0.96)",
-          },
-          content: {
-            background: "#f8fafc",
-          },
-        }}
-        className="user-view-modal"
-      >
-        {selectedUser && (
-          <div className="relative mt-2">
-            <div className="mb-5 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                <div className="relative">
-                  <img
-                    src={selectedUser.profileImage || "/userimg.png"}
-                    alt={selectedUser.fullName}
-                    className="h-20 w-20 rounded-full border-4 border-slate-100 object-cover shadow-md"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">User Details</p>
-                  <h2 className="mt-1 mb-2 text-xl font-semibold text-slate-900 md:text-2xl">
-                    {isViewLoading ? "Loading user..." : selectedUser.fullName}
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    Review the account profile, subscription details, and membership access in one place.
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-                      {formatEnumLabel(selectedUser.role)}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-                      {subscriptionTierLabel}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-                      Joined: {joinedLabel}
-                    </span>
-                    <span className={`rounded-full px-3 py-1.5 text-sm font-medium ${getStatusBadgeClassName(headerStatus)}`}>
-                      {formatEnumLabel(headerStatus)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {isViewLoading ? (
-              <div className="space-y-5 animate-pulse">
-                {[...Array(2)].map((_, sectionIndex) => (
-                  <div key={sectionIndex} className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm">
-                    <div className="mb-4">
-                      <div className="h-3 w-32 rounded bg-slate-200" />
-                      <div className="mt-2 h-4 w-48 rounded bg-slate-200" />
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {[...Array(6)].map((_, index) => (
-                        <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                          <div className="mb-2 h-3 w-20 rounded bg-slate-200" />
-                          <div className="h-5 w-full rounded bg-slate-200" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <>
-                <div className="max-h-[62vh] space-y-5 overflow-y-auto pr-1">
-                  {detailSections.map((section) => (
-                    <div
-                      key={section.key}
-                      className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm"
-                    >
-                      <div className="mb-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">
-                          {section.eyebrow}
-                        </p>
-                        <h4 className="mt-1 text-sm font-semibold text-slate-900">
-                          {section.title}
-                        </h4>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        {section.cards.map((card) => (
-                          <div
-                            key={card.label}
-                            className={`rounded-2xl border border-slate-200 bg-slate-50 p-4 ${card.fullWidth ? "md:col-span-2 xl:col-span-3" : ""}`}
-                          >
-                            <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                              {card.label}
-                            </div>
-                            <div className={`font-semibold text-slate-800 ${card.fullWidth ? "text-sm leading-6" : "text-base"}`}>
-                              {card.value}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-5 flex items-center justify-end border-t border-slate-200 pt-4">
-                  <button
-                    onClick={handleViewCancel}
-                    className="rounded-xl border border-slate-200 bg-white px-7 py-2.5 font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    Close
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </Modal>
+      {selectedUser ? (
+        <DetailModal
+          open={isViewModalOpen}
+          onCancel={handleViewCancel}
+          avatarSrc={selectedUser.profileImage || "/userimg.png"}
+          avatarAlt={selectedUser.fullName}
+          title={isViewLoading ? "Loading user..." : selectedUser.fullName}
+          description="Review the account profile, subscription details, and membership access in one place."
+          badges={[
+            { value: formatEnumLabel(selectedUser.role) },
+            { value: subscriptionTierLabel },
+            { value: joinedLabel, label: "Joined" },
+            { value: formatEnumLabel(headerStatus), className: `rounded-full px-3 py-1.5 text-sm font-medium ${getStatusBadgeClassName(headerStatus)}` },
+          ]}
+          sections={detailSections}
+          isLoading={isViewLoading}
+        />
+      ) : null}
     </div>
   );
 }

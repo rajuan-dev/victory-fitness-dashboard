@@ -47,19 +47,34 @@ export const getUserToken = () => {
 };
 
 export const storeResetToken = ({ resetToken }) => {
-  if (resetToken) {
-    setToLocalStorage("resetToken", resetToken);
+  if (typeof window !== "undefined") {
+    if (resetToken) {
+      setToLocalStorage("resetToken", resetToken);
+    } else {
+      localStorage.removeItem("resetToken");
+    }
   }
+};
+
+export const storeResetEmail = (email) => {
+  if (typeof window !== "undefined") {
+    if (email) {
+      localStorage.setItem("resetEmail", email);
+    } else {
+      localStorage.removeItem("resetEmail");
+    }
+  }
+};
+
+export const getResetEmail = () => {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("resetEmail") || "";
 };
 
 export const getResetToken = () => {
   if (typeof window === "undefined") return "";
   const token = localStorage.getItem("resetToken");
-  if (!token) {
-    console.error("Reset token is missing or invalid.");
-    return "";
-  }
-  return token;
+  return token || "";
 };
 
 // Retrieve user info (decoded token) from localStorage
@@ -205,6 +220,70 @@ export const loginAdmin = async ({ email, password }) => {
   return data.user;
 };
 
+export const requestPasswordReset = async ({ email }) => {
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.detail || "Failed to send reset code");
+  }
+
+  return data;
+};
+
+export const verifyPasswordResetCode = async ({ email, code }) => {
+  const response = await fetch(`${API_URL}/auth/verify-reset-code`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ email, code }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.detail || "Failed to verify reset code");
+  }
+
+  if (data?.reset_token) {
+    storeResetToken({ resetToken: data.reset_token });
+  }
+
+  return data;
+};
+
+export const resetPasswordWithToken = async ({ resetToken, newPassword }) => {
+  const response = await fetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      reset_token: resetToken,
+      new_password: newPassword,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.detail || "Failed to reset password");
+  }
+
+  return data;
+};
+
 // Remove the access token from localStorage
 export const removeAccessToken = () => {
   if (typeof window !== "undefined") {
@@ -219,5 +298,7 @@ export const clearUserInfo = () => {
     localStorage.removeItem("sessionToken");
     localStorage.removeItem("userData");
     localStorage.removeItem("token");
+    localStorage.removeItem("resetToken");
+    localStorage.removeItem("resetEmail");
   }
 };

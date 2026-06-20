@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { requestPasswordReset, storeResetEmail } from "../../../services/auth.service";
 
 function ForgetPassword() {
   const [email, setEmail] = useState("");
@@ -16,12 +17,13 @@ function ForgetPassword() {
     setIsLoading(true);
     setError(null);
     try {
-      // Mock API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const normalizedEmail = email.trim().toLowerCase();
+      await requestPasswordReset({ email: normalizedEmail });
+      storeResetEmail(normalizedEmail);
       navigate("/verification-code");
     } catch (err) {
       console.error("Failed to send password reset code:", err);
-      setError("Failed to send reset code. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to send reset code. Please try again.");
     } finally {
       setIsLoading(false);
     }

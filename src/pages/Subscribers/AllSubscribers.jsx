@@ -1,63 +1,18 @@
 import { ConfigProvider, Modal, Table, Spin, message } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IoSearch, IoChevronBack } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { FaRegEye } from "react-icons/fa";
 import { AiOutlineDelete } from "react-icons/ai";
-import { globalDemoData } from "../../utils/demoData";
-
-const formatDisplayDate = (value) => {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "N/A";
-  }
-
-  return date.toLocaleDateString();
-};
-
-const formatDisplayDateTime = (value) => {
-  if (!value) {
-    return "N/A";
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "N/A";
-  }
-
-  return date.toLocaleString();
-};
-
-const formatEnumLabel = (value) => {
-  const normalized = String(value || "").trim();
-  if (!normalized) {
-    return "N/A";
-  }
-
-  return normalized
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-};
-
-const getStatusBadgeClassName = (value) => {
-  const normalized = String(value || "").toUpperCase();
-
-  if (normalized === "ACTIVE") {
-    return "bg-green-400/30 text-green-100";
-  }
-
-  if (normalized === "PENDING") {
-    return "bg-amber-400/30 text-amber-100";
-  }
-
-  return "bg-red-400/30 text-red-100";
-};
+import DetailModal from "../../components/dashboard/DetailModal";
+import {
+  formatDisplayDate,
+  formatDisplayDateTime,
+  formatEnumLabel,
+  getStatusBadgeClassName,
+} from "../../utils/dashboardFormatters";
+import { listAdminSubscribers } from "../../../services/admin-content.service";
+import { deleteAdminUser } from "../../../services/admin-users.service";
 
 const getSubscriberDetailSections = (user) => [
   {
@@ -98,12 +53,37 @@ function AllSubscribers() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [usersData, setUsersData] = useState(globalDemoData.subscribers || []);
+  const [usersData, setUsersData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
+  useEffect(() => {
+    let isMounted = true;
 
-  const meta = { total: usersData.length };
-  const isLoading = false;
-  const isDeleting = false;
+    const loadSubscribers = async () => {
+      setIsLoading(true);
+      try {
+        const response = await listAdminSubscribers({ limit: 250 });
+        if (isMounted) {
+          setUsersData(Array.isArray(response?.users) ? response.users : []);
+        }
+      } catch (err) {
+        console.error("Failed to load subscribers:", err);
+        if (isMounted) {
+          message.error(err.message || "Failed to load subscribers");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadSubscribers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
 
   const handleCancel = () => {
@@ -128,13 +108,17 @@ function AllSubscribers() {
 
   const confirmDelete = async () => {
     try {
-      setUsersData(usersData.filter(user => user.id !== selectedUser.id));
-      message.success("Subscriber deleted successfully (Demo)");
+      setIsDeleting(true);
+      await deleteAdminUser(selectedUser.id);
+      setUsersData((prev) => prev.filter((user) => user.id !== selectedUser.id));
+      message.success("Subscriber deleted successfully");
       setIsModalOpen(false);
       setSelectedUser(null);
     } catch (err) {
       console.error("Failed to delete subscriber:", err);
-      message.error("Failed to delete subscriber");
+      message.error(err.message || "Failed to delete subscriber");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -160,7 +144,7 @@ function AllSubscribers() {
         </div>
       ),
     },
-    { title: "Tier", dataIndex: "subscriptionTier", key: "subscriptionTier" },
+    { title: "Tier", dataIndex: "subscriptionTier", key: "subscriptionTier", render: (value) => formatEnumLabel(value) },
     { title: "Email", dataIndex: "email", key: "email" },
     { title: "Phone No", dataIndex: "contactNumber", key: "contactNumber" },
     {
@@ -195,6 +179,7 @@ function AllSubscribers() {
     );
   }, [usersData, searchQuery]);
 
+  const meta = { total: filteredData.length };
   const detailSections = selectedUser ? getSubscriberDetailSections(selectedUser) : [];
   const joinedLabel = selectedUser ? formatDisplayDate(selectedUser.joinedDate) : "N/A";
 
@@ -316,113 +301,23 @@ function AllSubscribers() {
         </Modal>
 
         {/* View Modal */}
-        <Modal
-          open={isViewModalOpen}
-          centered
-          onCancel={handleViewCancel}
-          footer={null}
-          width={1120}
-          style={{ maxWidth: "calc(100vw - 32px)" }}
-          styles={{
-            body: {
-              paddingTop: 12,
-              paddingBottom: 20,
-              background: "linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%)",
-            },
-            header: {
-              borderBottom: "1px solid rgba(226, 232, 240, 0.9)",
-              paddingInline: 24,
-              paddingBlock: 18,
-              background: "rgba(255, 255, 255, 0.96)",
-            },
-            content: {
-              background: "#f8fafc",
-            },
-          }}
-          className="user-view-modal"
-        >
-          {selectedUser && (
-            <div className="relative mt-2">
-              <div className="mb-5 rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm backdrop-blur">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                  <div className="relative">
-                    <img
-                      src={selectedUser.profileImage || "/userimg.png"}
-                      alt={selectedUser.fullName}
-                      className="h-20 w-20 rounded-full border-4 border-slate-100 object-cover shadow-md"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">Subscriber Details</p>
-                    <h2 className="mt-1 mb-2 text-xl font-semibold text-slate-900 md:text-2xl">
-                      {selectedUser.fullName}
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      Review subscriber profile, plan status, and membership summary in the same dashboard style.
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-                        Subscriber
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-                        {formatEnumLabel(selectedUser.subscriptionTier)}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
-                        Joined: {joinedLabel}
-                      </span>
-                      <span className={`rounded-full px-3 py-1.5 text-sm font-medium ${getStatusBadgeClassName(selectedUser.status)}`}>
-                        {formatEnumLabel(selectedUser.status)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="max-h-[62vh] space-y-5 overflow-y-auto pr-1">
-                {detailSections.map((section) => (
-                  <div
-                    key={section.key}
-                    className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm"
-                  >
-                    <div className="mb-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">
-                        {section.eyebrow}
-                      </p>
-                      <h4 className="mt-1 text-sm font-semibold text-slate-900">
-                        {section.title}
-                      </h4>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {section.cards.map((card) => (
-                        <div
-                          key={card.label}
-                          className={`rounded-2xl border border-slate-200 bg-slate-50 p-4 ${card.fullWidth ? "md:col-span-2 xl:col-span-3" : ""}`}
-                        >
-                          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                            {card.label}
-                          </div>
-                          <div className={`font-semibold text-slate-800 ${card.fullWidth ? "text-sm leading-6" : "text-base"}`}>
-                            {card.value}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-5 flex items-center justify-end border-t border-slate-200 pt-4">
-                <button
-                  onClick={handleViewCancel}
-                  className="rounded-xl border border-slate-200 bg-white px-7 py-2.5 font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-        </Modal>
+        {selectedUser ? (
+          <DetailModal
+            open={isViewModalOpen}
+            onCancel={handleViewCancel}
+            avatarSrc={selectedUser.profileImage || "/userimg.png"}
+            avatarAlt={selectedUser.fullName}
+            title={selectedUser.fullName}
+            description="Review subscriber profile, plan status, and membership summary in the same dashboard style."
+            badges={[
+              { value: "Subscriber" },
+              { value: formatEnumLabel(selectedUser.subscriptionTier) },
+              { value: joinedLabel, label: "Joined" },
+              { value: formatEnumLabel(selectedUser.status), className: `rounded-full px-3 py-1.5 text-sm font-medium ${getStatusBadgeClassName(selectedUser.status)}` },
+            ]}
+            sections={detailSections}
+          />
+        ) : null}
       </ConfigProvider>
     </div>
   );

@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { IoChevronBack, IoChevronDown, IoChevronUp } from 'react-icons/io5';
 import { FaPlus } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { Modal, message } from 'antd';
+import { Modal, Spin, message } from 'antd';
 import { FiEdit, FiTrash2 } from 'react-icons/fi';
-import { globalDemoData } from '../../utils/demoData';
+import {
+    createAdminFaq,
+    deleteAdminFaq,
+    listAdminFaqs,
+    updateAdminFaq,
+} from '../../../services/admin-content.service';
 
 const FAQ = () => {
     const navigate = useNavigate();
@@ -15,12 +20,39 @@ const FAQ = () => {
     const [selectedFAQ, setSelectedFAQ] = useState(null);
     const [newFAQ, setNewFAQ] = useState({ question: '', answer: '' });
     const [editFAQ, setEditFAQ] = useState({ question: '', answer: '' });
-    const [faqs, setFaqs] = useState(globalDemoData.faqs);
+    const [faqs, setFaqs] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isCreating, setIsCreating] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    const isLoading = false;
-    const isCreating = false;
-    const isUpdating = false;
-    const isDeleting = false;
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadFaqs = async () => {
+            setIsLoading(true);
+            try {
+                const response = await listAdminFaqs();
+                if (isMounted) {
+                    setFaqs(Array.isArray(response?.items) ? response.items : []);
+                }
+            } catch (err) {
+                console.error('Failed to load FAQs:', err);
+                if (isMounted) {
+                    message.error(err.message || 'Failed to load FAQs');
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        loadFaqs();
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const toggleFAQ = (index) => {
         setOpenIndex(openIndex === index ? null : index);
@@ -43,13 +75,16 @@ const FAQ = () => {
 
     const handleAddFAQ = async () => {
         try {
-            const newEntry = { id: Date.now().toString(), ...newFAQ };
-            setFaqs([newEntry, ...faqs]);
-            message.success('FAQ added successfully (Demo)');
+            setIsCreating(true);
+            const created = await createAdminFaq(newFAQ);
+            setFaqs((prev) => [created, ...prev]);
+            message.success('FAQ added successfully');
             handleAddModalClose();
         } catch (err) {
             console.error('Failed to add FAQ:', err);
-            message.error('Failed to add FAQ');
+            message.error(err.message || 'Failed to add FAQ');
+        } finally {
+            setIsCreating(false);
         }
     };
 
@@ -73,12 +108,16 @@ const FAQ = () => {
 
     const handleUpdateFAQ = async () => {
         try {
-            setFaqs(faqs.map(faq => faq.id === selectedFAQ.id ? { ...faq, ...editFAQ } : faq));
-            message.success('FAQ updated successfully (Demo)');
+            setIsUpdating(true);
+            const updated = await updateAdminFaq(selectedFAQ.id, editFAQ);
+            setFaqs((prev) => prev.map((faq) => faq.id === selectedFAQ.id ? updated : faq));
+            message.success('FAQ updated successfully');
             handleEditModalClose();
         } catch (err) {
             console.error('Failed to update FAQ:', err);
-            message.error('Failed to update FAQ');
+            message.error(err.message || 'Failed to update FAQ');
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -95,12 +134,16 @@ const FAQ = () => {
 
     const handleDeleteFAQ = async () => {
         try {
-            setFaqs(faqs.filter(faq => faq.id !== selectedFAQ.id));
-            message.success('FAQ deleted successfully (Demo)');
+            setIsDeleting(true);
+            await deleteAdminFaq(selectedFAQ.id);
+            setFaqs((prev) => prev.filter((faq) => faq.id !== selectedFAQ.id));
+            message.success('FAQ deleted successfully');
             handleDeleteModalClose();
         } catch (err) {
             console.error('Failed to delete FAQ:', err);
-            message.error('Failed to delete FAQ');
+            message.error(err.message || 'Failed to delete FAQ');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -352,7 +395,7 @@ const FAQ = () => {
                             </p>
                         </div>
                         <p className="text-sm text-red-600 mt-4 font-medium">
-                            ⚠️ This action cannot be undone.
+                            Warning: This action cannot be undone.
                         </p>
                     </div>
                 )}

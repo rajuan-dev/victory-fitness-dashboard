@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ConfigProvider, List, Button, Spin, Pagination } from "antd";
 import { IoChevronBack } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
-import { globalDemoData } from "../../utils/demoData";
+import {
+  listAdminNotifications,
+  markAllAdminNotificationsRead,
+  updateAdminNotification,
+} from "../../../services/admin-content.service";
 
 function timeAgo(dateString) {
   const now = new Date();
@@ -27,17 +31,51 @@ export default function Notifications() {
   const [page, setPage] = useState(1);
   const limit = 10;
   
-  const [allNotifications, setAllNotifications] = useState(globalDemoData.notifications);
-  const isLoading = false;
-  
-  const total = allNotifications.length;
+  const [allNotifications, setAllNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Only show unread notifications
-  const notifications = allNotifications.filter((item) => !item?.read);
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadNotifications = async () => {
+      setIsLoading(true);
+      try {
+        const response = await listAdminNotifications();
+        if (isMounted) {
+          const items = Array.isArray(response?.items) ? response.items : [];
+          setAllNotifications(items);
+          window.dispatchEvent(new CustomEvent("admin-notifications-updated", { detail: items }));
+        }
+      } catch (err) {
+        console.error("Failed to load notifications:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadNotifications();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const notifications = useMemo(
+    () => allNotifications.filter((item) => !item?.read),
+    [allNotifications],
+  );
+  const total = notifications.length;
+  const pagedNotifications = notifications.slice((page - 1) * limit, page * limit);
 
   const markRead = async (id) => {
     try {
-      setAllNotifications(allNotifications.map(n => n.id === id ? { ...n, read: true } : n));
+      const updated = await updateAdminNotification(id, { read: true });
+      setAllNotifications((prev) => {
+        const items = prev.map((n) => n.id === id ? updated : n);
+        window.dispatchEvent(new CustomEvent("admin-notifications-updated", { detail: items }));
+        return items;
+      });
     } catch (err) {
       console.error("Failed to mark notification as read:", err);
     }
@@ -45,7 +83,10 @@ export default function Notifications() {
 
   const markAllRead = async () => {
     try {
-      setAllNotifications(allNotifications.map(n => ({ ...n, read: true })));
+      const response = await markAllAdminNotificationsRead();
+      const items = Array.isArray(response?.items) ? response.items : [];
+      setAllNotifications(items);
+      window.dispatchEvent(new CustomEvent("admin-notifications-updated", { detail: items }));
     } catch (err) {
       console.error("Failed to mark all notifications as read:", err);
     }
@@ -98,7 +139,7 @@ export default function Notifications() {
             <>
               <List
                 split={false}
-                dataSource={notifications}
+                dataSource={pagedNotifications}
                 renderItem={(item) => (
                   <div
                     onClick={() => markRead(item?.id)}
