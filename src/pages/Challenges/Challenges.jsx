@@ -7,6 +7,7 @@ import { toBase64Payload } from "../../utils/imageUpload";
 
 const challengeStatusFilters = ['ALL', 'ACTIVE', 'UPCOMING', 'DRAFT', 'ARCHIVED'];
 const challengeDurationOptions = [3, 5, 7, 14, 21];
+const challengeGoalTypeOptions = ['Strength', 'Cardio', 'Mindfulness', 'Nutrition', 'Family'];
 const challengeInputClassName =
   'rounded-xl border-slate-200 bg-white text-slate-800 shadow-sm placeholder:text-slate-400 hover:border-blue-300 focus:border-blue-500';
 const PLAN_GENERATION_DEFAULTS = {
@@ -261,6 +262,15 @@ const Challenges = () => {
   const handleAdd = () => {
     setEditingChallenge(null);
     form.resetFields();
+    form.setFieldsValue({
+      title: '',
+      description: '',
+      whyItMatters: '',
+      category: PLAN_GENERATION_DEFAULTS.category,
+      durationDays: PLAN_GENERATION_DEFAULTS.durationDays,
+      points: PLAN_GENERATION_DEFAULTS.points,
+      status: PLAN_GENERATION_DEFAULTS.status,
+    });
     setSelectedThumbnail(null);
     setThumbnailPreview('');
     setThumbnailFileList([]);
@@ -278,6 +288,8 @@ const Challenges = () => {
     const editValues = {
       title: challenge.title,
       description: challenge.description,
+      whyItMatters: challenge.whyItMatters,
+      category: challenge.category,
       durationDays: challenge.durationDays,
       points: challenge.points,
       status: challenge.status,
@@ -604,7 +616,7 @@ const Challenges = () => {
         : (thumbnailCleared ? '' : (thumbnailPreview || editingChallenge?.thumbnail || ''));
       const payload = {
         ...values,
-        category: editingChallenge?.category || PLAN_GENERATION_DEFAULTS.category,
+        category: values.category || editingChallenge?.category || PLAN_GENERATION_DEFAULTS.category,
         difficulty: editingChallenge?.difficulty || PLAN_GENERATION_DEFAULTS.difficulty,
         durationDays: normalizedPlanDays.length > 0 ? normalizedPlanDays.length : values.durationDays,
         planDays: normalizedPlanDays,
@@ -808,8 +820,8 @@ const Challenges = () => {
 
           <Form.Item
             name="description"
-            label={<span className="font-medium text-slate-700">Description</span>}
-            rules={[{ required: true, message: 'Please input the description' }]}
+            label={<span className="font-medium text-slate-700">What To Do</span>}
+            rules={[{ required: true, message: 'Please input what members should do' }]}
           >
             <Input.TextArea
               rows={4}
@@ -818,13 +830,38 @@ const Challenges = () => {
             />
           </Form.Item>
 
+          <Form.Item
+            name="whyItMatters"
+            label={<span className="font-medium text-slate-700">Why It Matters</span>}
+          >
+            <Input.TextArea
+              rows={4}
+              placeholder="Explain why this challenge matters and the outcome it supports"
+              className={challengeInputClassName}
+            />
+          </Form.Item>
+
           <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm">
             <div className="mb-4">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">Challenge Metadata</p>
-              <h4 className="mt-1 text-sm font-semibold text-slate-900">Duration, points, and status</h4>
+              <h4 className="mt-1 text-sm font-semibold text-slate-900">Goal type, duration, points, and status</h4>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Form.Item
+                name="category"
+                label={<span className="font-medium text-slate-700">Goal Type</span>}
+                rules={[{ required: true, message: 'Please select the goal type' }]}
+              >
+                <Select placeholder="Select goal type" size="large">
+                  {challengeGoalTypeOptions.map((goalType) => (
+                    <Select.Option key={goalType} value={goalType}>
+                      {goalType}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
               <Form.Item
                 name="durationDays"
                 label={<span className="font-medium text-slate-700">Duration Days</span>}
