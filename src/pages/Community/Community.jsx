@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FaPhotoVideo, FaPlus, FaTrash } from 'react-icons/fa';
 import { BiBroadcast } from 'react-icons/bi';
 import { adminApiRequest } from '../../../services/auth.service';
+import { uploadAdminCommunityVideo } from '../../../services/admin-workouts.service';
 
 const TIER_OPTIONS = [
   { label: 'All Users (Global)', value: 'ALL' },
@@ -159,7 +160,7 @@ const Community = () => {
       const isVideo = (file.type || '').startsWith('video/');
       setSelectedMedia({
         image_base64: isVideo ? undefined : base64,
-        video_base64: isVideo ? base64 : undefined,
+        file: isVideo ? file : undefined,
         mime_type: file.type || 'image/jpeg',
         file_name: file.name || (isVideo ? 'community-video.mp4' : 'community-image.jpg'),
         media_kind: isVideo ? 'video' : 'image',
@@ -187,6 +188,17 @@ const Community = () => {
     setError('');
     setSuccess('');
     try {
+      const uploadedCommunityVideoUrl =
+        selectedMedia?.media_kind === 'video' && selectedMedia?.file
+          ? await uploadAdminCommunityVideo(selectedMedia.file)
+          : '';
+      const mediaPayload = selectedMedia
+        ? {
+            image_base64: selectedMedia.image_base64,
+            mime_type: selectedMedia.mime_type,
+            file_name: selectedMedia.file_name,
+          }
+        : {};
       if (editingPostId) {
         await adminApiRequest(`/admin/community/posts/${editingPostId}`, {
           method: 'PATCH',
@@ -195,8 +207,8 @@ const Community = () => {
             audience: form.tier,
             clear_image: clearMedia,
             clear_media: clearMedia,
-            external_video_url: normalizedExternalVideoUrl || undefined,
-            ...(selectedMedia || {}),
+            external_video_url: uploadedCommunityVideoUrl || normalizedExternalVideoUrl || undefined,
+            ...mediaPayload,
           },
         });
         setSuccess('Community post updated');
@@ -206,8 +218,8 @@ const Community = () => {
           body: {
             content,
             audience: form.tier,
-            external_video_url: normalizedExternalVideoUrl || undefined,
-            ...(selectedMedia || {}),
+            external_video_url: uploadedCommunityVideoUrl || normalizedExternalVideoUrl || undefined,
+            ...mediaPayload,
           },
         });
         setSuccess('Community post published');
