@@ -298,32 +298,32 @@ const Workouts = () => {
   };
 
   const handleSubmit = async (values) => {
-    let uploadedVideoUrl = values.videoUrl || "";
-    if (selectedVideo?.file) {
-      uploadedVideoUrl = await uploadAdminWorkoutVideo(selectedVideo.file);
-    }
-
-    const nextThumbnail = selectedThumbnail
-      ? (editingWorkout?.thumbnail || "")
-      : (thumbnailCleared ? "" : (thumbnailPreview || editingWorkout?.thumbnail || DEFAULT_THUMBNAIL));
-    const payload = {
-      title: values.title,
-      vimeoId: values.vimeoId,
-      videoUrl: uploadedVideoUrl,
-      videoSource: values.videoSource || "VIMEO",
-      tag: values.tag,
-      visibility: values.visibility,
-      thumbnail: nextThumbnail,
-      video_base64: null,
-      video_mime_type: selectedVideo?.video_mime_type || "video/mp4",
-      video_file_name: selectedVideo?.video_file_name || null,
-      image_base64: selectedThumbnail?.image_base64 || null,
-      mime_type: selectedThumbnail?.mime_type || "image/jpeg",
-      file_name: selectedThumbnail?.file_name || null,
-    };
-
     try {
       setIsSaving(true);
+      let uploadedVideoUrl = values.videoUrl || "";
+      if (selectedVideo?.file) {
+        uploadedVideoUrl = await uploadAdminWorkoutVideo(selectedVideo.file);
+      }
+
+      const nextThumbnail = selectedThumbnail
+        ? (editingWorkout?.thumbnail || "")
+        : (thumbnailCleared ? "" : (thumbnailPreview || editingWorkout?.thumbnail || DEFAULT_THUMBNAIL));
+      const payload = {
+        title: values.title,
+        vimeoId: values.vimeoId,
+        videoUrl: uploadedVideoUrl,
+        videoSource: values.videoSource || "VIMEO",
+        tag: values.tag,
+        visibility: values.visibility,
+        thumbnail: nextThumbnail,
+        video_base64: null,
+        video_mime_type: selectedVideo?.video_mime_type || "video/mp4",
+        video_file_name: selectedVideo?.video_file_name || null,
+        image_base64: selectedThumbnail?.image_base64 || null,
+        mime_type: selectedThumbnail?.mime_type || "image/jpeg",
+        file_name: selectedThumbnail?.file_name || null,
+      };
+
       if (editingWorkout) {
         await updateAdminWorkout(editingWorkout.id, payload);
         message.success("Workout updated successfully");
