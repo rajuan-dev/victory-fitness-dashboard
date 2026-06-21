@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal, Form, Input, Select, message, Popconfirm, Button } from "antd";
 import { FiEdit, FiTrash2, FiPlus, FiRefreshCw, FiSearch } from "react-icons/fi";
 import { FaPlayCircle } from "react-icons/fa";
@@ -7,6 +7,7 @@ import {
   deleteAdminWorkout,
   listAdminWorkouts,
   syncAdminWorkouts,
+  uploadAdminWorkoutVideo,
   updateAdminWorkout,
 } from "../../../services/admin-workouts.service";
 import ThumbnailUploadField from "../../components/dashboard/ThumbnailUploadField";
@@ -14,6 +15,79 @@ import { toBase64Payload } from "../../utils/imageUpload";
 
 const DEFAULT_THUMBNAIL =
   "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=300&auto=format&fit=crop";
+
+const WORKOUT_VIDEO_OPTIONS = [
+  { label: "Smartphone Upload", value: "UPLOAD" },
+  { label: "YouTube", value: "YOUTUBE" },
+  { label: "Vimeo", value: "VIMEO" },
+];
+
+const isDirectWorkoutVideoUrl = (videoUrl) =>
+  /^https?:\/\/.+\.(mp4|mov|m4v|webm)(\?.*)?$/i.test(String(videoUrl || "").trim()) ||
+  String(videoUrl || "").includes("/workout-videos/");
+
+const normalizeWorkoutVideoPreviewUrl = (source, rawVideoUrl, rawVimeoId) => {
+  const videoSource = String(source || "VIMEO").trim().toUpperCase();
+  const videoUrl = String(rawVideoUrl || "").trim();
+  const vimeoId = String(rawVimeoId || "").trim();
+
+  try {
+    if (isDirectWorkoutVideoUrl(videoUrl)) {
+      return videoUrl;
+    }
+
+    if (videoSource === "UPLOAD") {
+      return videoUrl;
+    }
+
+    if (videoSource === "YOUTUBE") {
+      const parsed = new URL(videoUrl);
+      const host = parsed.hostname.toLowerCase();
+      const path = parsed.pathname || "";
+      if (host === "youtu.be") {
+        const videoId = path.replace(/^\/+/, "").split("/")[0];
+        return videoId ? `https://www.youtube.com/embed/${videoId}?playsinline=1&rel=0` : "";
+      }
+      if (host === "youtube.com" || host === "www.youtube.com" || host === "m.youtube.com") {
+        const videoId = path.startsWith("/embed/")
+          ? path.split("/embed/")[1]?.split("/")[0]
+          : path.startsWith("/shorts/")
+            ? path.split("/shorts/")[1]?.split("/")[0]
+            : parsed.searchParams.get("v") || "";
+        return videoId ? `https://www.youtube.com/embed/${videoId}?playsinline=1&rel=0` : "";
+      }
+      return "";
+    }
+
+    if (vimeoId) {
+      return `https://player.vimeo.com/video/${encodeURIComponent(vimeoId)}?autoplay=0&title=0&byline=0&portrait=0&playsinline=1&dnt=1`;
+    }
+
+    if (!videoUrl) {
+      return "";
+    }
+
+    const parsed = new URL(videoUrl);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname || "";
+    if (host === "player.vimeo.com" && path.startsWith("/video/")) {
+      const videoId = path.split("/video/")[1]?.split("/")[0];
+      return videoId
+        ? `https://player.vimeo.com/video/${encodeURIComponent(videoId)}?autoplay=0&title=0&byline=0&portrait=0&playsinline=1&dnt=1`
+        : "";
+    }
+    if (host === "vimeo.com" || host === "www.vimeo.com") {
+      const match = path.match(/\/(\d+)(?:$|[/?#])/);
+      return match?.[1]
+        ? `https://player.vimeo.com/video/${encodeURIComponent(match[1])}?autoplay=0&title=0&byline=0&portrait=0&playsinline=1&dnt=1`
+        : "";
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+};
 
 function WorkoutCardSkeleton() {
   return (
@@ -43,10 +117,22 @@ const Workouts = () => {
   const [previewWorkout, setPreviewWorkout] = useState(null);
   const [error, setError] = useState("");
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
+  const [selectedVideo, setSelectedVideo] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [thumbnailFileList, setThumbnailFileList] = useState([]);
+  const [videoFileList, setVideoFileList] = useState([]);
   const [thumbnailCleared, setThumbnailCleared] = useState(false);
   const [form] = Form.useForm();
+  const watchedVideoSource = Form.useWatch("videoSource", form) || "VIMEO";
+  const watchedVideoUrl = Form.useWatch("videoUrl", form) || "";
+  const watchedVimeoId = Form.useWatch("vimeoId", form) || "";
+  const watchedTitle = Form.useWatch("title", form) || "";
+  const modalPreviewUrl = useMemo(
+    () =>
+      selectedVideo?.preview ||
+      normalizeWorkoutVideoPreviewUrl(watchedVideoSource, watchedVideoUrl, watchedVimeoId),
+    [selectedVideo, watchedVideoSource, watchedVideoUrl, watchedVimeoId],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,10 +182,13 @@ const Workouts = () => {
     form.resetFields();
     form.setFieldsValue({
       visibility: "Published",
+      videoSource: "VIMEO",
     });
     setSelectedThumbnail(null);
+    setSelectedVideo(null);
     setThumbnailPreview("");
     setThumbnailFileList([]);
+    setVideoFileList([]);
     setThumbnailCleared(false);
     setIsModalVisible(true);
   };
@@ -110,8 +199,10 @@ const Workouts = () => {
       ...workout,
     });
     setSelectedThumbnail(null);
+    setSelectedVideo(null);
     setThumbnailPreview(workout.thumbnail || "");
     setThumbnailFileList([]);
+    setVideoFileList([]);
     setThumbnailCleared(false);
     setIsModalVisible(true);
   };
@@ -141,12 +232,52 @@ const Workouts = () => {
     setThumbnailCleared(true);
   };
 
+  const handleVideoChange = async ({ fileList }) => {
+    setVideoFileList(fileList.slice(-1));
+    const file = fileList[fileList.length - 1]?.originFileObj;
+    if (!file) {
+      setSelectedVideo(null);
+      return;
+    }
+
+    try {
+      const payload = {
+        file,
+        video_mime_type: file.type || "video/mp4",
+        video_file_name: file.name || "workout-video.mp4",
+        preview: URL.createObjectURL(file),
+      };
+      setSelectedVideo(payload);
+      form.setFieldsValue({
+        videoSource: "UPLOAD",
+        videoUrl: payload.preview,
+        vimeoId: "",
+      });
+    } catch {
+      message.error("Failed to read workout video");
+    }
+  };
+
+  const handleVideoRemove = () => {
+    if (selectedVideo?.preview?.startsWith?.("blob:")) {
+      URL.revokeObjectURL(selectedVideo.preview);
+    }
+    setSelectedVideo(null);
+    setVideoFileList([]);
+    form.setFieldValue("videoUrl", "");
+  };
+
   const closeWorkoutModal = () => {
+    if (selectedVideo?.preview?.startsWith?.("blob:")) {
+      URL.revokeObjectURL(selectedVideo.preview);
+    }
     setIsModalVisible(false);
     setEditingWorkout(null);
     setSelectedThumbnail(null);
+    setSelectedVideo(null);
     setThumbnailPreview("");
     setThumbnailFileList([]);
+    setVideoFileList([]);
     setThumbnailCleared(false);
     form.resetFields();
   };
@@ -167,22 +298,32 @@ const Workouts = () => {
   };
 
   const handleSubmit = async (values) => {
-    const nextThumbnail = selectedThumbnail
-      ? (editingWorkout?.thumbnail || "")
-      : (thumbnailCleared ? "" : (thumbnailPreview || editingWorkout?.thumbnail || DEFAULT_THUMBNAIL));
-    const payload = {
-      title: values.title,
-      vimeoId: values.vimeoId,
-      tag: values.tag,
-      visibility: values.visibility,
-      thumbnail: nextThumbnail,
-      image_base64: selectedThumbnail?.image_base64 || null,
-      mime_type: selectedThumbnail?.mime_type || "image/jpeg",
-      file_name: selectedThumbnail?.file_name || null,
-    };
-
     try {
       setIsSaving(true);
+      let uploadedVideoUrl = values.videoUrl || "";
+      if (selectedVideo?.file) {
+        uploadedVideoUrl = await uploadAdminWorkoutVideo(selectedVideo.file);
+      }
+
+      const nextThumbnail = selectedThumbnail
+        ? (editingWorkout?.thumbnail || "")
+        : (thumbnailCleared ? "" : (thumbnailPreview || editingWorkout?.thumbnail || DEFAULT_THUMBNAIL));
+      const payload = {
+        title: values.title,
+        vimeoId: values.vimeoId,
+        videoUrl: uploadedVideoUrl,
+        videoSource: values.videoSource || "VIMEO",
+        tag: values.tag,
+        visibility: values.visibility,
+        thumbnail: nextThumbnail,
+        video_base64: null,
+        video_mime_type: selectedVideo?.video_mime_type || "video/mp4",
+        video_file_name: selectedVideo?.video_file_name || null,
+        image_base64: selectedThumbnail?.image_base64 || null,
+        mime_type: selectedThumbnail?.mime_type || "image/jpeg",
+        file_name: selectedThumbnail?.file_name || null,
+      };
+
       if (editingWorkout) {
         await updateAdminWorkout(editingWorkout.id, payload);
         message.success("Workout updated successfully");
@@ -284,7 +425,9 @@ const Workouts = () => {
                 <h3 className="mb-1 truncate text-sm font-semibold text-slate-100" title={workout.title}>
                   {workout.title}
                 </h3>
-                <p className="mb-2 mt-0.5 truncate text-xs text-slate-400">Vimeo ID: {workout.vimeoId}</p>
+                <p className="mb-2 mt-0.5 truncate text-xs text-slate-400">
+                  {workout.videoSource || "VIMEO"}{workout.vimeoId ? ` · Vimeo ID: ${workout.vimeoId}` : ""}
+                </p>
                 <div className="mt-auto flex items-center gap-2">
                   <span className="rounded bg-teal-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300">
                     {workout.tag}
@@ -349,13 +492,22 @@ const Workouts = () => {
           <div className="space-y-5">
             <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 shadow-2xl">
               <div className="aspect-video w-full">
-                <iframe
-                  src={`https://player.vimeo.com/video/${encodeURIComponent(previewWorkout.vimeoId)}?autoplay=1&title=0&byline=0&portrait=0`}
-                  title={previewWorkout.title}
-                  className="h-full w-full"
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  allowFullScreen
-                />
+                {String(previewWorkout.videoSource || "VIMEO").toUpperCase() === "UPLOAD" ? (
+                  <video
+                    src={previewWorkout.videoUrl}
+                    title={previewWorkout.title}
+                    className="h-full w-full bg-black object-contain"
+                    controls
+                  />
+                ) : (
+                  <iframe
+                    src={previewWorkout.videoUrl || normalizeWorkoutVideoPreviewUrl("VIMEO", "", previewWorkout.vimeoId)}
+                    title={previewWorkout.title}
+                    className="h-full w-full"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                  />
+                )}
               </div>
             </div>
 
@@ -376,17 +528,22 @@ const Workouts = () => {
                   </span>
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900">{previewWorkout.title}</h2>
-                <p className="mt-2 text-sm text-slate-500">Vimeo ID: {previewWorkout.vimeoId}</p>
+                <p className="mt-2 text-sm text-slate-500">
+                  Source: {previewWorkout.videoSource || "VIMEO"}
+                  {previewWorkout.vimeoId ? ` · Vimeo ID: ${previewWorkout.vimeoId}` : ""}
+                </p>
               </div>
 
-              <a
-                href={`https://vimeo.com/${encodeURIComponent(previewWorkout.vimeoId)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-              >
-                Open in Vimeo
-              </a>
+              {previewWorkout.videoSource === "UPLOAD" ? null : (
+                <a
+                  href={previewWorkout.videoUrl || `https://vimeo.com/${encodeURIComponent(previewWorkout.vimeoId)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+                >
+                  Open source video
+                </a>
+              )}
             </div>
           </div>
         )}
@@ -410,12 +567,81 @@ const Workouts = () => {
           </Form.Item>
 
           <Form.Item
+            name="videoSource"
+            label={<span className="font-medium text-slate-700">Video Source</span>}
+            rules={[{ required: true, message: "Please select the video source!" }]}
+          >
+            <Select options={WORKOUT_VIDEO_OPTIONS} size="large" />
+          </Form.Item>
+
+          <Form.Item
+            name="videoUrl"
+            label={<span className="font-medium text-slate-700">Video URL</span>}
+            rules={
+              watchedVideoSource === "UPLOAD"
+                ? []
+                : [{ required: !watchedVimeoId, message: watchedVideoSource === "YOUTUBE" ? "Please input the video URL!" : "Please input the video URL!" }]
+            }
+            hidden={watchedVideoSource === "UPLOAD"}
+          >
+            <Input placeholder="YouTube, Vimeo, or direct MP4/MOV/WEBM URL" className="py-2" />
+          </Form.Item>
+
+          <Form.Item
             name="vimeoId"
             label={<span className="font-medium text-slate-700">Vimeo Video ID</span>}
-            rules={[{ required: true, message: "Please input the Vimeo ID!" }]}
+            rules={[{ required: watchedVideoSource === "VIMEO" && !watchedVideoUrl, message: "Please input the Vimeo ID or Vimeo URL!" }]}
+            hidden={watchedVideoSource !== "VIMEO"}
           >
             <Input placeholder="e.g. 740239410" className="py-2" />
           </Form.Item>
+
+          {watchedVideoSource === "UPLOAD" ? (
+            <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-2 text-sm font-semibold text-slate-700">Direct video upload</div>
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm"
+                onChange={(event) => handleVideoChange({ fileList: [{ originFileObj: event.target.files?.[0] }].filter((item) => item.originFileObj) })}
+                className="block w-full text-sm text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-500"
+              />
+              <p className="mt-2 text-xs text-slate-500">Upload MP4, MOV, or WEBM directly from your device. You can also paste a direct video file URL in the URL field above and it will be downloaded to S3.</p>
+              {selectedVideo?.video_file_name ? (
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+                  <span className="truncate">{selectedVideo.video_file_name}</span>
+                  <button type="button" onClick={handleVideoRemove} className="rounded-md border border-rose-200 px-2 py-1 text-rose-600 hover:bg-rose-50">
+                    Remove video
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {modalPreviewUrl ? (
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-800">Preview before publish</div>
+                  <div className="text-xs text-slate-500">Check the stream here before saving.</div>
+                </div>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-950 shadow-sm">
+                <div className="aspect-video w-full">
+                  {watchedVideoSource === "UPLOAD" ? (
+                    <video src={modalPreviewUrl} title={watchedTitle || "Workout preview"} className="h-full w-full bg-black object-contain" controls />
+                  ) : (
+                    <iframe
+                      src={modalPreviewUrl}
+                      title={watchedTitle || "Workout preview"}
+                      className="h-full w-full"
+                      allow="autoplay; fullscreen; picture-in-picture"
+                      allowFullScreen
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <Form.Item
             name="tag"

@@ -1,129 +1,154 @@
+import { Suspense, lazy } from "react";
 import { createBrowserRouter } from "react-router-dom";
-import SignInPage from "../pages/auth/SignInPage";
-import ForgetPassword from "../pages/auth/ForgetPassword";
-import VerificationCode from "../pages/auth/VerificationCode";
-import ResetPassword from "../pages/auth/ResetPassword";
-import MainLayout from "../layout/MainLayout";
-import DashboardPage from "../pages/dashboard/DashboardPage";
-import PrivacyPolicy from "../pages/Privacy Policy/PrivacyPolicy";
-import TermsCondition from "../pages/Terms Condition/TermsCondition";
-import AboutUs from "../pages/About Us/AboutUs";
-import UserDetails from "../pages/userDetails/UserDetails";
-import ProfilePage from "../pages/profile/ProfilePage";
-import Settings from "../pages/Settings/Settings";
-import ChangePass from "../pages/profile/ChangePass";
-import EditProfile from "../pages/profile/EditProfile";
-import Notifications from "../pages/Notifications/Notifications";
-import FAQ from "../pages/FAQ/FAQ";
-import Workouts from "../pages/Workouts/Workouts";
-import Subscriptions from "../pages/Subscriptions/Subscriptions";
-import Challenges from "../pages/Challenges/Challenges";
-import Masterclasses from "../pages/Masterclasses/Masterclasses";
-import Community from "../pages/Community/Community";
-import AllSubscribers from "../pages/Subscribers/AllSubscribers";
-import Applications from "../pages/Applications/Applications";
-import SupportInbox from "../pages/SupportInbox/SupportInbox";
+
+const SignInPage = lazy(() => import("../pages/auth/SignInPage"));
+const ForgetPassword = lazy(() => import("../pages/auth/ForgetPassword"));
+const VerificationCode = lazy(() => import("../pages/auth/VerificationCode"));
+const ResetPassword = lazy(() => import("../pages/auth/ResetPassword"));
+const MainLayout = lazy(() => import("../layout/MainLayout"));
+const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage"));
+const PrivacyPolicy = lazy(() => import("../pages/Privacy Policy/PrivacyPolicy"));
+const TermsCondition = lazy(() => import("../pages/Terms Condition/TermsCondition"));
+const AboutUs = lazy(() => import("../pages/About Us/AboutUs"));
+const UserDetails = lazy(() => import("../pages/userDetails/UserDetails"));
+const ProfilePage = lazy(() => import("../pages/profile/ProfilePage"));
+const Settings = lazy(() => import("../pages/Settings/Settings"));
+const ChangePass = lazy(() => import("../pages/profile/ChangePass"));
+const EditProfile = lazy(() => import("../pages/profile/EditProfile"));
+const Notifications = lazy(() => import("../pages/Notifications/Notifications"));
+const FAQ = lazy(() => import("../pages/FAQ/FAQ"));
+const Workouts = lazy(() => import("../pages/Workouts/Workouts"));
+const Subscriptions = lazy(() => import("../pages/Subscriptions/Subscriptions"));
+const Challenges = lazy(() => import("../pages/Challenges/Challenges"));
+const Masterclasses = lazy(() => import("../pages/Masterclasses/Masterclasses"));
+const Community = lazy(() => import("../pages/Community/Community"));
+const AllSubscribers = lazy(() => import("../pages/Subscribers/AllSubscribers"));
+const Applications = lazy(() => import("../pages/Applications/Applications"));
+const SupportInbox = lazy(() => import("../pages/SupportInbox/SupportInbox"));
+
+function RouteFallback() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="space-y-3">
+        <div className="h-8 w-64 rounded-xl bg-slate-200" />
+        <div className="h-4 w-80 rounded-lg bg-slate-100" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[...Array(4)].map((_, index) => (
+          <div key={index} className="h-32 rounded-2xl border border-slate-200 bg-slate-100" />
+        ))}
+      </div>
+      <div className="h-80 rounded-2xl border border-slate-200 bg-slate-100" />
+    </div>
+  );
+}
+
+const withSuspense = (Component) => (
+  <Suspense fallback={<RouteFallback />}>
+    <Component />
+  </Suspense>
+);
 
 const router = createBrowserRouter([
   {
     path: "/sign-in",
-    element: <SignInPage />,
+    element: withSuspense(SignInPage),
   },
   {
     path: "/forget-password",
-    element: <ForgetPassword />,
+    element: withSuspense(ForgetPassword),
   },
   {
     path: "/verification-code",
-    element: <VerificationCode />,
+    element: withSuspense(VerificationCode),
   },
   {
     path: "/new-password",
-    element: <ResetPassword />,
+    element: withSuspense(ResetPassword),
   },
 
   {
     path: "/",
-    element: <MainLayout />,
+    element: withSuspense(MainLayout),
     children: [
       {
         path: "/",
-        element: <DashboardPage />,
+        element: withSuspense(DashboardPage),
       },
       {
         path: "/user-details",
-        element: <UserDetails />,
+        element: withSuspense(UserDetails),
       },
       {
         path: "/workouts",
-        element: <Workouts />,
+        element: withSuspense(Workouts),
       },
       {
         path: "/subscriptions",
-        element: <Subscriptions />,
+        element: withSuspense(Subscriptions),
       },
       {
         path: "/all-subscribers",
-        element: <AllSubscribers />,
+        element: withSuspense(AllSubscribers),
       },
       {
         path: "/challenges",
-        element: <Challenges />,
+        element: withSuspense(Challenges),
       },
       {
         path: "/masterclasses",
-        element: <Masterclasses />,
+        element: withSuspense(Masterclasses),
       },
       {
         path: "/community",
-        element: <Community />,
+        element: withSuspense(Community),
       },
       {
         path: "/applications",
-        element: <Applications />,
+        element: withSuspense(Applications),
       },
       {
         path: "/support-inbox",
-        element: <SupportInbox />,
+        element: withSuspense(SupportInbox),
       },
 
       // settings
       {
         path: "/about-us",
-        element: <AboutUs />,
+        element: withSuspense(AboutUs),
       },
       {
         path: "/privacy-policy",
-        element: <PrivacyPolicy />,
+        element: withSuspense(PrivacyPolicy),
       },
       {
         path: "/terms-and-condition",
-        element: <TermsCondition />,
+        element: withSuspense(TermsCondition),
       },
       {
         path: "/settings",
-        element: <Settings />,
+        element: withSuspense(Settings),
       },
       {
         path: "/edit-profile",
-        element: <EditProfile />,
+        element: withSuspense(EditProfile),
       },
       {
         path: "/change-password",
-        element: <ChangePass />,
+        element: withSuspense(ChangePass),
       },
       {
         path: "/faq",
-        element: <FAQ />,
+        element: withSuspense(FAQ),
       },
 
       {
         path: "/notifications",
-        element: <Notifications />,
+        element: withSuspense(Notifications),
       },
       {
         path: "/profile",
-        element: <ProfilePage />,
+        element: withSuspense(ProfilePage),
       },
     ],
   },

@@ -6,7 +6,6 @@ import { adminApiRequest } from '../../../services/auth.service';
 import { toBase64Payload } from "../../utils/imageUpload";
 
 const challengeStatusFilters = ['ALL', 'ACTIVE', 'UPCOMING', 'DRAFT', 'ARCHIVED'];
-const challengeDurationOptions = [3, 5, 7, 14, 21];
 const challengeGoalTypeOptions = ['Strength', 'Cardio', 'Mindfulness', 'Nutrition', 'Family'];
 const challengeInputClassName =
   'rounded-xl border-slate-200 bg-white text-slate-800 shadow-sm placeholder:text-slate-400 hover:border-blue-300 focus:border-blue-500';
@@ -30,6 +29,8 @@ const createEmptyExercise = () => ({
   workout_id: '',
   workout_title: '',
   workout_vimeo_id: '',
+  workout_video_url: '',
+  workout_video_source: 'VIMEO',
   workout_thumbnail: '',
 });
 
@@ -91,6 +92,8 @@ const autoAttachWorkoutMatches = (days = [], workouts = []) =>
           workout_id: matchedWorkout.id,
           workout_title: matchedWorkout.title,
           workout_vimeo_id: matchedWorkout.vimeoId,
+          workout_video_url: matchedWorkout.videoUrl || '',
+          workout_video_source: matchedWorkout.videoSource || 'VIMEO',
           workout_thumbnail: matchedWorkout.thumbnail || '',
         };
       }),
@@ -118,6 +121,8 @@ const normalizePlanDays = (days = []) =>
                 workout_id: exercise?.workout_id || '',
                 workout_title: exercise?.workout_title || '',
                 workout_vimeo_id: exercise?.workout_vimeo_id || '',
+                workout_video_url: exercise?.workout_video_url || '',
+                workout_video_source: exercise?.workout_video_source || 'VIMEO',
                 workout_thumbnail: exercise?.workout_thumbnail || '',
               }))
             : [createEmptyExercise()],
@@ -140,6 +145,8 @@ const sanitizePlanDaysForSubmit = (days = []) =>
               workout_id: String(exercise.workout_id || '').trim(),
               workout_title: String(exercise.workout_title || '').trim(),
               workout_vimeo_id: String(exercise.workout_vimeo_id || '').trim(),
+              workout_video_url: String(exercise.workout_video_url || '').trim(),
+              workout_video_source: String(exercise.workout_video_source || 'VIMEO').trim().toUpperCase() || 'VIMEO',
               workout_thumbnail: String(exercise.workout_thumbnail || '').trim(),
             }));
 
@@ -443,6 +450,8 @@ const Challenges = () => {
                         workout_id: matchedWorkout.id,
                         workout_title: matchedWorkout.title,
                         workout_vimeo_id: matchedWorkout.vimeoId,
+                        workout_video_url: matchedWorkout.videoUrl || '',
+                        workout_video_source: matchedWorkout.videoSource || 'VIMEO',
                         workout_thumbnail: matchedWorkout.thumbnail || '',
                       };
                     })()
@@ -488,6 +497,8 @@ const Challenges = () => {
                     workout_id: '',
                     workout_title: '',
                     workout_vimeo_id: '',
+                    workout_video_url: '',
+                    workout_video_source: 'VIMEO',
                     workout_thumbnail: '',
                   };
                 }
@@ -496,6 +507,8 @@ const Challenges = () => {
                   workout_id: selectedWorkout.id,
                   workout_title: selectedWorkout.title,
                   workout_vimeo_id: selectedWorkout.vimeoId,
+                  workout_video_url: selectedWorkout.videoUrl || '',
+                  workout_video_source: selectedWorkout.videoSource || 'VIMEO',
                   workout_thumbnail: selectedWorkout.thumbnail || '',
                 };
               }),
@@ -865,15 +878,9 @@ const Challenges = () => {
               <Form.Item
                 name="durationDays"
                 label={<span className="font-medium text-slate-700">Duration Days</span>}
-                rules={[{ required: true, message: 'Please select the duration' }]}
+                rules={[{ required: true, message: 'Please input the duration' }]}
               >
-                <Select placeholder="Select duration" size="large">
-                  {challengeDurationOptions.map((days) => (
-                    <Select.Option key={days} value={days}>
-                      {days} Days
-                    </Select.Option>
-                  ))}
-                </Select>
+                <InputNumber min={1} max={365} placeholder="e.g. 7" className="w-full" />
               </Form.Item>
 
               <Form.Item
@@ -1076,7 +1083,7 @@ const Challenges = () => {
                         <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
                           <div className="mb-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Instruction Video</p>
-                            <p className="mt-1 text-xs text-slate-500">Add a Vimeo demo manually for this exercise, or attach one from the workout library.</p>
+                            <p className="mt-1 text-xs text-slate-500">Add a manual Vimeo demo for this exercise, or attach any workout from the library to preserve its full video source.</p>
                           </div>
                           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <Input
@@ -1084,6 +1091,8 @@ const Challenges = () => {
                               onChange={(event) => updateExerciseVideoMeta(activeDayIndex, sectionIndex, exerciseIndex, {
                                 workout_id: '',
                                 workout_title: event.target.value,
+                                workout_video_url: '',
+                                workout_video_source: 'VIMEO',
                               })}
                               placeholder="Video label, e.g. Squat form demo"
                               className={challengeInputClassName}
@@ -1093,6 +1102,8 @@ const Challenges = () => {
                               onChange={(event) => updateExerciseVideoMeta(activeDayIndex, sectionIndex, exerciseIndex, {
                                 workout_id: '',
                                 workout_vimeo_id: event.target.value.trim(),
+                                workout_video_url: '',
+                                workout_video_source: 'VIMEO',
                               })}
                               placeholder="Manual Vimeo Video ID"
                               className={challengeInputClassName}
@@ -1102,16 +1113,16 @@ const Challenges = () => {
                           <Select
                             showSearch
                             allowClear
-                            placeholder={workoutLibraryLoading ? 'Loading Vimeo library...' : 'Attach a Vimeo workout from library'}
+                            placeholder={workoutLibraryLoading ? 'Loading workout library...' : 'Attach a workout from library'}
                             loading={workoutLibraryLoading}
                             value={exercise.workout_id || undefined}
                             options={workoutSelectOptions}
                             optionFilterProp="label"
                             onChange={(value) => linkExerciseWorkout(activeDayIndex, sectionIndex, exerciseIndex, value || '')}
                           />
-                          {exercise.workout_vimeo_id ? (
+                          {exercise.workout_vimeo_id || exercise.workout_video_url ? (
                             <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-700 shadow-sm">
-                              Linked: Vimeo {exercise.workout_vimeo_id}
+                              Linked: {exercise.workout_video_source || 'VIMEO'} {exercise.workout_vimeo_id || exercise.workout_title || 'video'}
                             </div>
                           ) : null}
                         </div>

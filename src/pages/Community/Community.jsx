@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FaImage, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaPhotoVideo, FaPlus, FaTrash } from 'react-icons/fa';
 import { BiBroadcast } from 'react-icons/bi';
 import { adminApiRequest } from '../../../services/auth.service';
 
@@ -29,6 +29,78 @@ const formatPostDate = (value) => {
   return date.toLocaleString();
 };
 
+const getVideoRenderMode = (url) => {
+  const normalizedUrl = String(url || '').trim();
+  if (!normalizedUrl) {
+    return 'none';
+  }
+  if (
+    normalizedUrl.startsWith('https://player.vimeo.com/video/') ||
+    normalizedUrl.startsWith('https://www.youtube.com/embed/') ||
+    normalizedUrl.startsWith('https://www.youtube-nocookie.com/embed/')
+  ) {
+    return 'embed';
+  }
+  if (/\.(mp4|mov|m4v|webm|mp3|m4a|wav|ogg)(\?|$)/i.test(normalizedUrl)) {
+    return 'direct';
+  }
+  return 'direct';
+};
+
+const normalizeExternalVideoUrl = (url) => {
+  const normalizedUrl = String(url || '').trim();
+  if (!normalizedUrl) {
+    return '';
+  }
+  try {
+    const parsed = new URL(normalizedUrl);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname || '';
+
+    if (host === 'youtu.be') {
+      const videoId = path.replace(/^\/+/, '').split('/')[0];
+      return videoId ? `https://www.youtube.com/embed/${videoId}?playsinline=1&rel=0` : '';
+    }
+    if (host === 'youtube.com' || host === 'www.youtube.com' || host === 'm.youtube.com') {
+      const videoId = path.startsWith('/embed/')
+        ? path.split('/embed/')[1]?.split('/')[0]
+        : path.startsWith('/shorts/')
+          ? path.split('/shorts/')[1]?.split('/')[0]
+          : parsed.searchParams.get('v') || '';
+      return videoId ? `https://www.youtube.com/embed/${videoId}?playsinline=1&rel=0` : '';
+    }
+    if (host === 'player.vimeo.com' && path.startsWith('/video/')) {
+      const videoId = path.split('/video/')[1]?.split('/')[0] || '';
+      return videoId ? `https://player.vimeo.com/video/${videoId}?playsinline=1&title=0&byline=0&portrait=0&dnt=1` : '';
+    }
+    if (host === 'vimeo.com' || host === 'www.vimeo.com') {
+      const match = path.match(/\/(\d+)(?:$|[/?#])/);
+      return match?.[1]
+        ? `https://player.vimeo.com/video/${match[1]}?playsinline=1&title=0&byline=0&portrait=0&dnt=1`
+        : '';
+    }
+  } catch {
+    return '';
+  }
+  return '';
+};
+
+const getExternalVideoLinkError = (message) => {
+  const normalized = String(message || '').trim();
+  if (
+    normalized === 'Only YouTube and Vimeo links are supported' ||
+    normalized === 'Only valid YouTube and Vimeo links are supported' ||
+    normalized === 'That YouTube link is not valid' ||
+    normalized === 'That Vimeo link is not valid' ||
+    normalized === 'Video link is empty' ||
+    normalized === 'Use a direct media file URL if you want the file stored in S3' ||
+    normalized === 'Only direct media file URLs can be stored in S3'
+  ) {
+    return 'Use a valid video link. Supported: YouTube, Vimeo, or a direct MP4/MOV/WEBM file URL.';
+  }
+  return normalized || 'Failed to save community post';
+};
+
 const Community = () => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [posts, setPosts] = useState([]);
@@ -36,9 +108,10 @@ const Community = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingPostId, setDeletingPostId] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
-  const [clearImage, setClearImage] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState('');
+  const [externalVideoUrl, setExternalVideoUrl] = useState('');
+  const [clearMedia, setClearMedia] = useState(false);
   const [expandedComments, setExpandedComments] = useState({});
   const [commentDrafts, setCommentDrafts] = useState({});
   const [commentSubmitting, setCommentSubmitting] = useState({});
@@ -67,12 +140,13 @@ const Community = () => {
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setEditingPostId('');
-    setSelectedImage(null);
-    setImagePreview('');
-    setClearImage(false);
+    setSelectedMedia(null);
+    setMediaPreview('');
+    setExternalVideoUrl('');
+    setClearMedia(false);
   };
 
-  const handleImageChange = (event) => {
+  const handleMediaChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
       return;
@@ -82,21 +156,30 @@ const Community = () => {
     reader.onload = () => {
       const result = typeof reader.result === 'string' ? reader.result : '';
       const base64 = result.includes(',') ? result.split(',')[1] : '';
-      setSelectedImage({
-        image_base64: base64,
+      const isVideo = (file.type || '').startsWith('video/');
+      setSelectedMedia({
+        image_base64: isVideo ? undefined : base64,
+        video_base64: isVideo ? base64 : undefined,
         mime_type: file.type || 'image/jpeg',
-        file_name: file.name || 'community-image.jpg',
+        file_name: file.name || (isVideo ? 'community-video.mp4' : 'community-image.jpg'),
+        media_kind: isVideo ? 'video' : 'image',
       });
-      setImagePreview(result);
-      setClearImage(false);
+      setMediaPreview(result);
+      setExternalVideoUrl('');
+      setClearMedia(false);
     };
     reader.readAsDataURL(file);
   };
 
   const handleSubmit = async () => {
     const content = form.message.trim();
+    const normalizedExternalVideoUrl = normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl.trim();
     if (!content) {
       setError('Message content is required');
+      return;
+    }
+    if (selectedMedia && normalizedExternalVideoUrl) {
+      setError('Choose an upload or paste a video link, not both');
       return;
     }
 
@@ -110,8 +193,10 @@ const Community = () => {
           body: {
             content,
             audience: form.tier,
-            clear_image: clearImage,
-            ...(selectedImage || {}),
+            clear_image: clearMedia,
+            clear_media: clearMedia,
+            external_video_url: normalizedExternalVideoUrl || undefined,
+            ...(selectedMedia || {}),
           },
         });
         setSuccess('Community post updated');
@@ -121,7 +206,8 @@ const Community = () => {
           body: {
             content,
             audience: form.tier,
-            ...(selectedImage || {}),
+            external_video_url: normalizedExternalVideoUrl || undefined,
+            ...(selectedMedia || {}),
           },
         });
         setSuccess('Community post published');
@@ -130,7 +216,7 @@ const Community = () => {
       resetForm();
       await loadPosts();
     } catch (saveError) {
-      setError(saveError.message || 'Failed to save community post');
+      setError(getExternalVideoLinkError(saveError.message));
     } finally {
       setSaving(false);
     }
@@ -142,9 +228,10 @@ const Community = () => {
       tier: post.audience || 'ALL',
       message: post.content || '',
     });
-    setSelectedImage(null);
-    setImagePreview(post.image_url || '');
-    setClearImage(false);
+    setSelectedMedia(null);
+    setMediaPreview(post.video_url || post.image_url || '');
+    setExternalVideoUrl(getVideoRenderMode(post.video_url) === 'embed' ? post.video_url : '');
+    setClearMedia(false);
     setSuccess('');
     setError('');
   };
@@ -234,12 +321,12 @@ const Community = () => {
 
           <div className="flex flex-wrap items-center gap-3">
             <label className="block">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Photo</span>
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Media</span>
               <span className="flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-[#151e32] border border-[#334155] transition-colors rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px] cursor-pointer">
-                <FaImage className="text-slate-400" />
-                <span>{selectedImage || imagePreview ? 'Change' : 'Add'}</span>
+                <FaPhotoVideo className="text-slate-400" />
+                <span>{selectedMedia || mediaPreview ? 'Change' : 'Add'}</span>
               </span>
-              <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+              <input type="file" accept="image/*,video/mp4,video/quicktime,video/webm" className="hidden" onChange={handleMediaChange} />
             </label>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Post Type</label>
@@ -262,20 +349,78 @@ const Community = () => {
           />
         </div>
 
-        {imagePreview ? (
+        <div className="mb-4">
+          <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">Video Link</label>
+          <input
+            type="url"
+            value={externalVideoUrl}
+            placeholder="Paste a YouTube, Vimeo, or direct video file URL"
+            onChange={(e) => {
+              const value = e.target.value;
+              setExternalVideoUrl(value);
+              if (value.trim()) {
+                setSelectedMedia(null);
+                setMediaPreview('');
+              }
+            }}
+            className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-3 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 placeholder:text-slate-500"
+          />
+          <p className="mt-2 text-[11px] leading-4 text-slate-500">
+            Supported: YouTube watch/share/shorts, Vimeo links, and direct MP4/MOV/WEBM file URLs.
+          </p>
+        </div>
+
+        {mediaPreview ? (
           <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3">
-            <img src={imagePreview} alt="Community upload preview" className="w-full max-h-64 object-cover rounded-lg" />
+            {selectedMedia?.media_kind === 'video' || (!selectedMedia && /\.(mp4|mov|webm)(\?|$)/i.test(mediaPreview)) ? (
+              <video src={mediaPreview} controls className="w-full max-h-64 rounded-lg bg-black" />
+            ) : (
+              <img src={mediaPreview} alt="Community upload preview" className="w-full max-h-64 object-cover rounded-lg" />
+            )}
             <div className="mt-3 flex justify-end">
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedImage(null);
-                  setImagePreview('');
-                  setClearImage(true);
+                  setSelectedMedia(null);
+                  setMediaPreview('');
+                  setClearMedia(true);
                 }}
                 className="text-xs text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
               >
-                Remove image
+                Remove media
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!mediaPreview && externalVideoUrl ? (
+          <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3">
+            {getVideoRenderMode(normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl) === 'embed' ? (
+              <iframe
+                src={normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl}
+                title="External community video preview"
+                className="w-full h-64 rounded-lg bg-black"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            ) : (
+              <video
+                src={externalVideoUrl}
+                controls
+                className="w-full max-h-64 rounded-lg bg-black"
+              />
+            )}
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setExternalVideoUrl('');
+                  setClearMedia(true);
+                }}
+                className="text-xs text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
+              >
+                Remove link
               </button>
             </div>
           </div>
@@ -350,6 +495,21 @@ const Community = () => {
                   {post.image_url ? (
                     <div className="pl-11">
                       <img src={post.image_url} alt="Community post" className="mt-1 max-h-64 rounded-lg border border-[#334155] object-cover" />
+                    </div>
+                  ) : post.video_url ? (
+                    <div className="pl-11">
+                      {getVideoRenderMode(post.video_url) === 'embed' ? (
+                        <iframe
+                          src={post.video_url}
+                          title={`Community video ${post.id}`}
+                          className="mt-1 h-64 w-full rounded-lg border border-[#334155] bg-black"
+                          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                          allowFullScreen
+                          referrerPolicy="strict-origin-when-cross-origin"
+                        />
+                      ) : (
+                        <video src={post.video_url} controls className="mt-1 max-h-64 rounded-lg border border-[#334155] bg-black" />
+                      )}
                     </div>
                   ) : null}
 
