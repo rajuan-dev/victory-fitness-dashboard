@@ -122,6 +122,28 @@ const storeAuthSession = (data) => {
   storeUserInfo(data.user);
 };
 
+export const logoutAdmin = async () => {
+  const token = getUserToken();
+  const sessionToken = getSessionToken();
+
+  try {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: "include",
+      body: sessionToken ? JSON.stringify({ session_token: sessionToken }) : undefined,
+    });
+  } catch {
+    // Local logout should still complete if the backend request fails.
+  } finally {
+    clearUserInfo();
+  }
+};
+
 export const refreshAdminSession = async () => {
   const sessionToken = getSessionToken();
   const response = await fetch(`${API_URL}/auth/refresh`, {

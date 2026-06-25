@@ -6,7 +6,7 @@ import { IoMdSettings } from "react-icons/io";
 import { IoCloseSharp, IoLogOutOutline } from "react-icons/io5";
 import { MdCardMembership, MdOutlineGroups } from "react-icons/md";
 import { FaDumbbell, FaTrophy, FaGraduationCap, FaUsers, FaFileAlt, FaHeadset } from "react-icons/fa";
-import { clearUserInfo } from "../../../services/auth.service";
+import { logoutAdmin } from "../../../services/auth.service";
 
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -21,8 +21,8 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
     }
   };
 
-  const handleLogout = () => {
-    clearUserInfo();
+  const handleLogout = async () => {
+    await logoutAdmin();
     localStorage.removeItem("resetToken");
     navigate("/sign-in");
     if (window.innerWidth < 768) {
