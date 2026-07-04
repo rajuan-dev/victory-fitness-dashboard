@@ -349,6 +349,7 @@ const Workouts = () => {
         syncedCount: result?.syncedCount ?? 0,
         modulesSynced: result?.modulesSynced ?? 0,
         videosDiscovered: result?.videosDiscovered ?? 0,
+        syncedVideos: Array.isArray(result?.syncedVideos) ? result.syncedVideos : [],
       });
       await reloadWorkouts();
       message.success(
@@ -416,18 +417,46 @@ const Workouts = () => {
             </p>
           </div>
           {syncSummary ? (
-            <div className="grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-3">
-              <div className="rounded-xl bg-slate-100 px-3 py-2">
-                <span className="block text-xs uppercase tracking-wider text-slate-500">Imported</span>
-                <span className="text-lg font-semibold text-slate-900">{syncSummary.syncedCount}</span>
+            <div className="w-full max-w-3xl space-y-3">
+              <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                <span className="font-semibold text-slate-900">{syncSummary.syncedCount}</span> Vimeo video
+                {syncSummary.syncedCount === 1 ? "" : "s"} synced into MongoDB.
               </div>
-              <div className="rounded-xl bg-slate-100 px-3 py-2">
-                <span className="block text-xs uppercase tracking-wider text-slate-500">Modules</span>
-                <span className="text-lg font-semibold text-slate-900">{syncSummary.modulesSynced}</span>
-              </div>
-              <div className="rounded-xl bg-slate-100 px-3 py-2">
-                <span className="block text-xs uppercase tracking-wider text-slate-500">Videos Found</span>
-                <span className="text-lg font-semibold text-slate-900">{syncSummary.videosDiscovered}</span>
+              <div className="space-y-2">
+                {(syncSummary.syncedVideos || []).map((video) => (
+                  <div
+                    key={`${video.vimeoId}-${video.tag}`}
+                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700"
+                  >
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div className="space-y-1">
+                        <div className="font-semibold text-slate-900">{video.title || "Untitled Vimeo Workout"}</div>
+                        <div className="text-xs text-slate-500">
+                          Module: {video.tag || "Vimeo"}{video.vimeoId ? ` | Vimeo ID: ${video.vimeoId}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
+                          {video.visibility || "Draft"}
+                        </span>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
+                            video.alreadyInLibrary
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}
+                        >
+                          {video.alreadyInLibrary ? "Already Stored" : "Stored In MongoDB"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-600">
+                      {video.alreadyInLibrary
+                        ? `This workout was already in the library, so sync kept its current visibility as ${video.visibility || "Draft"}.`
+                        : `This Vimeo video was added to MongoDB and saved as ${video.visibility || "Draft"}.`}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           ) : null}
