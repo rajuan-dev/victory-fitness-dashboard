@@ -115,6 +115,7 @@ const Workouts = () => {
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [previewWorkout, setPreviewWorkout] = useState(null);
+  const [syncSummary, setSyncSummary] = useState(null);
   const [error, setError] = useState("");
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -344,8 +345,16 @@ const Workouts = () => {
     try {
       setIsSyncing(true);
       const result = await syncAdminWorkouts();
+      setSyncSummary({
+        syncedCount: result?.syncedCount ?? 0,
+        modulesSynced: result?.modulesSynced ?? 0,
+        videosDiscovered: result?.videosDiscovered ?? 0,
+      });
       await reloadWorkouts();
-      message.success(result.message || "Workout library synced");
+      message.success(
+        result?.message ||
+          `Imported ${result?.syncedCount ?? 0} Vimeo workout${result?.syncedCount === 1 ? "" : "s"} as draft-ready items`,
+      );
     } catch (requestError) {
       message.error(requestError instanceof Error ? requestError.message : "Failed to sync workouts");
     } finally {
@@ -360,7 +369,9 @@ const Workouts = () => {
           <h1 className="text-2xl font-bold text-slate-800 md:text-3xl">
             Workout Library ({workouts.length})
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Manage the admin workout library from the backend.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Import Vimeo videos into the library, review them as drafts, then publish only the workouts you want live.
+          </p>
         </div>
         <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
           <div className="relative min-w-[16rem]">
@@ -379,7 +390,7 @@ const Workouts = () => {
             className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-teal-500/30 bg-slate-800 px-4 py-2.5 font-semibold text-teal-400 transition-all hover:bg-slate-700 disabled:opacity-50 md:flex-none"
           >
             <FiRefreshCw className={isSyncing ? "animate-spin" : ""} />
-            {isSyncing ? "Syncing..." : "Sync Vimeo"}
+            {isSyncing ? "Syncing..." : "Import From Vimeo"}
           </button>
           <button
             onClick={handleAdd}
@@ -388,6 +399,38 @@ const Workouts = () => {
             <FiPlus />
             Add Workout
           </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Vimeo Import Workflow
+            </h2>
+            <p className="text-sm text-slate-700">
+              Every newly synced Vimeo video is stored in MongoDB as <span className="font-semibold">Draft</span>.
+            </p>
+            <p className="text-sm text-slate-700">
+              If an admin changes a synced workout to <span className="font-semibold">Published</span>, future syncs keep that published status.
+            </p>
+          </div>
+          {syncSummary ? (
+            <div className="grid grid-cols-1 gap-2 text-sm text-slate-700 sm:grid-cols-3">
+              <div className="rounded-xl bg-slate-100 px-3 py-2">
+                <span className="block text-xs uppercase tracking-wider text-slate-500">Imported</span>
+                <span className="text-lg font-semibold text-slate-900">{syncSummary.syncedCount}</span>
+              </div>
+              <div className="rounded-xl bg-slate-100 px-3 py-2">
+                <span className="block text-xs uppercase tracking-wider text-slate-500">Modules</span>
+                <span className="text-lg font-semibold text-slate-900">{syncSummary.modulesSynced}</span>
+              </div>
+              <div className="rounded-xl bg-slate-100 px-3 py-2">
+                <span className="block text-xs uppercase tracking-wider text-slate-500">Videos Found</span>
+                <span className="text-lg font-semibold text-slate-900">{syncSummary.videosDiscovered}</span>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -426,7 +469,7 @@ const Workouts = () => {
                   {workout.title}
                 </h3>
                 <p className="mb-2 mt-0.5 truncate text-xs text-slate-400">
-                  {workout.videoSource || "VIMEO"}{workout.vimeoId ? ` · Vimeo ID: ${workout.vimeoId}` : ""}
+                  {workout.videoSource || "VIMEO"}{workout.vimeoId ? ` | Vimeo ID: ${workout.vimeoId}` : ""}
                 </p>
                 <div className="mt-auto flex items-center gap-2">
                   <span className="rounded bg-teal-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300">
@@ -530,7 +573,7 @@ const Workouts = () => {
                 <h2 className="text-2xl font-bold text-slate-900">{previewWorkout.title}</h2>
                 <p className="mt-2 text-sm text-slate-500">
                   Source: {previewWorkout.videoSource || "VIMEO"}
-                  {previewWorkout.vimeoId ? ` · Vimeo ID: ${previewWorkout.vimeoId}` : ""}
+                  {previewWorkout.vimeoId ? ` | Vimeo ID: ${previewWorkout.vimeoId}` : ""}
                 </p>
               </div>
 
