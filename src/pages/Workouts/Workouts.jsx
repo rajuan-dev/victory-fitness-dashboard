@@ -134,6 +134,17 @@ const Workouts = () => {
       normalizeWorkoutVideoPreviewUrl(watchedVideoSource, watchedVideoUrl, watchedVimeoId),
     [selectedVideo, watchedVideoSource, watchedVideoUrl, watchedVimeoId],
   );
+  const newlySyncedVideos = useMemo(
+    () =>
+      Array.isArray(syncSummary?.syncedVideos)
+        ? syncSummary.syncedVideos.filter((video) => !video?.alreadyInLibrary)
+        : [],
+    [syncSummary],
+  );
+  const newlySyncedVideoIds = useMemo(
+    () => new Set(newlySyncedVideos.map((video) => String(video?.vimeoId || "").trim()).filter(Boolean)),
+    [newlySyncedVideos],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -403,30 +414,29 @@ const Workouts = () => {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="space-y-1">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Vimeo Import Workflow
-            </h2>
-            <p className="text-sm text-slate-700">
-              Every newly synced Vimeo video is stored in MongoDB as <span className="font-semibold">Draft</span>.
-            </p>
-            <p className="text-sm text-slate-700">
-              If an admin changes a synced workout to <span className="font-semibold">Published</span>, future syncs keep that published status.
-            </p>
-          </div>
-          {syncSummary ? (
-            <div className="w-full max-w-3xl space-y-3">
-              <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
-                <span className="font-semibold text-slate-900">{syncSummary.syncedCount}</span> Vimeo video
-                {syncSummary.syncedCount === 1 ? "" : "s"} synced into MongoDB.
+      {syncSummary ? (
+        <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  New Vimeo Imports
+                </h2>
+                <p className="text-sm text-slate-700">
+                  Only brand-new videos from this sync are shown here. All synced workouts are stored in MongoDB and loaded below as cards.
+                </p>
               </div>
+              <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                <span className="font-semibold text-slate-900">{newlySyncedVideos.length}</span> new video
+                {newlySyncedVideos.length === 1 ? "" : "s"} added this sync
+              </div>
+            </div>
+            {newlySyncedVideos.length > 0 ? (
               <div className="space-y-2">
-                {(syncSummary.syncedVideos || []).map((video) => (
+                {newlySyncedVideos.map((video) => (
                   <div
                     key={`${video.vimeoId}-${video.tag}`}
-                    className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700"
+                    className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-slate-700"
                   >
                     <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                       <div className="space-y-1">
@@ -439,29 +449,22 @@ const Workouts = () => {
                         <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
                           {video.visibility || "Draft"}
                         </span>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
-                            video.alreadyInLibrary
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-emerald-100 text-emerald-700"
-                          }`}
-                        >
-                          {video.alreadyInLibrary ? "Already Stored" : "Stored In MongoDB"}
+                        <span className="rounded-full bg-emerald-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">
+                          New In MongoDB
                         </span>
                       </div>
                     </div>
-                    <p className="mt-2 text-xs text-slate-600">
-                      {video.alreadyInLibrary
-                        ? `This workout was already in the library, so sync kept its current visibility as ${video.visibility || "Draft"}.`
-                        : `This Vimeo video was added to MongoDB and saved as ${video.visibility || "Draft"}.`}
-                    </p>
                   </div>
                 ))}
               </div>
-            </div>
-          ) : null}
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                No new Vimeo videos were added in this sync. Existing stored workouts were checked and kept.
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -483,9 +486,18 @@ const Workouts = () => {
           workouts.map((workout) => (
             <div
               key={workout.id}
-              className="group relative flex cursor-pointer items-center gap-4 rounded-xl border border-[#334155] bg-[#1e293b] p-3 transition-all hover:border-slate-500 hover:bg-[#253245]"
+              className={`group relative flex cursor-pointer items-center gap-4 rounded-xl border p-3 transition-all hover:bg-[#253245] ${
+                newlySyncedVideoIds.has(String(workout.vimeoId || "").trim())
+                  ? "border-emerald-400/60 bg-[#20333a] shadow-[0_0_0_1px_rgba(52,211,153,0.18)] hover:border-emerald-300"
+                  : "border-[#334155] bg-[#1e293b] hover:border-slate-500"
+              }`}
               onClick={() => handlePreview(workout)}
             >
+              {newlySyncedVideoIds.has(String(workout.vimeoId || "").trim()) ? (
+                <div className="absolute left-3 top-3 z-10 rounded-full bg-emerald-400 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-950">
+                  Just Synced
+                </div>
+              ) : null}
               <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-slate-700">
                 <img src={workout.thumbnail || DEFAULT_THUMBNAIL} alt={workout.title} className="h-full w-full object-cover" />
                 <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
@@ -493,7 +505,7 @@ const Workouts = () => {
                 </div>
               </div>
 
-              <div className="min-w-0 flex-1 pr-6">
+              <div className="min-w-0 flex-1 pr-6 pt-6">
                 <h3 className="mb-1 truncate text-sm font-semibold text-slate-100" title={workout.title}>
                   {workout.title}
                 </h3>
