@@ -89,6 +89,10 @@ const normalizeWorkoutVideoPreviewUrl = (source, rawVideoUrl, rawVimeoId) => {
   return "";
 };
 
+const isVimeoPlaybackRestricted = (workout) =>
+  String(workout?.videoSource || "VIMEO").toUpperCase() === "VIMEO" &&
+  String(workout?.providerVisibility || "Published").trim().toLowerCase() !== "published";
+
 function WorkoutCardSkeleton() {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-slate-700/50 bg-slate-800/80 p-3 animate-pulse">
@@ -583,12 +587,32 @@ const Workouts = () => {
                     className="h-full w-full bg-black object-contain"
                     controls
                   />
+                ) : isVimeoPlaybackRestricted(previewWorkout) ? (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-slate-950 px-6 text-center">
+                    <div className="max-w-xl space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300">
+                        Vimeo Playback Restricted
+                      </p>
+                      <h3 className="text-2xl font-bold text-white">This Vimeo video cannot be embedded here.</h3>
+                      <p className="text-sm text-slate-300">
+                        Vimeo is blocking in-app playback for this video because its privacy setting is restricted. The workout is still stored in MongoDB and can remain in the library as a draft or published card.
+                      </p>
+                    </div>
+                    <a
+                      href={previewWorkout.videoUrl || `https://vimeo.com/${encodeURIComponent(previewWorkout.vimeoId)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                    >
+                      Open On Vimeo
+                    </a>
+                  </div>
                 ) : (
                   <iframe
                     src={previewWorkout.videoUrl || normalizeWorkoutVideoPreviewUrl("VIMEO", "", previewWorkout.vimeoId)}
                     title={previewWorkout.title}
                     className="h-full w-full"
-                    allow="autoplay; fullscreen; picture-in-picture"
+                    allow="autoplay; picture-in-picture"
                     allowFullScreen
                   />
                 )}
@@ -610,6 +634,17 @@ const Workouts = () => {
                   >
                     {previewWorkout.visibility}
                   </span>
+                  {String(previewWorkout.videoSource || "VIMEO").toUpperCase() === "VIMEO" ? (
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
+                        isVimeoPlaybackRestricted(previewWorkout)
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-emerald-500/10 text-emerald-600"
+                      }`}
+                    >
+                      {isVimeoPlaybackRestricted(previewWorkout) ? "Vimeo Restricted" : "Vimeo Playable"}
+                    </span>
+                  ) : null}
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900">{previewWorkout.title}</h2>
                 <p className="mt-2 text-sm text-slate-500">
