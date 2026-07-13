@@ -25,6 +25,7 @@ const Community = lazy(() => import("../pages/Community/Community"));
 const AllSubscribers = lazy(() => import("../pages/Subscribers/AllSubscribers"));
 const Applications = lazy(() => import("../pages/Applications/Applications"));
 const SupportInbox = lazy(() => import("../pages/SupportInbox/SupportInbox"));
+const Homepage = lazy(() => import("../pages/Homepage/Homepage"));
 
 function RouteFallback() {
   return (
@@ -110,6 +111,10 @@ const router = createBrowserRouter([
       {
         path: "/support-inbox",
         element: withSuspense(SupportInbox),
+      },
+      {
+        path: "/homepage",
+        element: withSuspense(Homepage),
       },
 
       // settings
