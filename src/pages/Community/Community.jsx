@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FaPhotoVideo, FaPlus, FaTrash } from 'react-icons/fa';
+import { useEffect, useMemo, useState } from 'react';
+import { FaFileAudio, FaPhotoVideo, FaTrash } from 'react-icons/fa';
 import { BiBroadcast } from 'react-icons/bi';
 import { adminApiRequest } from '../../../services/auth.service';
 import { uploadAdminCommunityVideo } from '../../../services/admin-workouts.service';
@@ -15,6 +15,7 @@ const TIER_OPTIONS = [
 const EMPTY_FORM = {
   tier: 'ALL',
   message: '',
+  postType: 'text',
 };
 
 const formatPostDate = (value) => {
@@ -147,6 +148,14 @@ const Community = () => {
     setClearMedia(false);
   };
 
+  const handlePostTypeChange = (postType) => {
+    setForm((current) => ({ ...current, postType }));
+    setSelectedMedia(null);
+    setMediaPreview('');
+    setExternalVideoUrl('');
+    setClearMedia(false);
+  };
+
   const handleMediaChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -158,12 +167,13 @@ const Community = () => {
       const result = typeof reader.result === 'string' ? reader.result : '';
       const base64 = result.includes(',') ? result.split(',')[1] : '';
       const isVideo = (file.type || '').startsWith('video/');
+      const isAudio = (file.type || '').startsWith('audio/');
       setSelectedMedia({
-        image_base64: isVideo ? undefined : base64,
+        image_base64: isVideo || isAudio ? undefined : base64,
         file: isVideo ? file : undefined,
         mime_type: file.type || 'image/jpeg',
-        file_name: file.name || (isVideo ? 'community-video.mp4' : 'community-image.jpg'),
-        media_kind: isVideo ? 'video' : 'image',
+        file_name: file.name || (isVideo ? 'community-video.mp4' : isAudio ? 'community-audio.mp3' : 'community-image.jpg'),
+        media_kind: isVideo ? 'video' : isAudio ? 'audio' : 'image',
       });
       setMediaPreview(result);
       setExternalVideoUrl('');
@@ -239,6 +249,7 @@ const Community = () => {
     setForm({
       tier: post.audience || 'ALL',
       message: post.content || '',
+      postType: post.video_url ? 'video' : post.image_url ? 'image' : post.audio_url ? 'audio' : 'text',
     });
     setSelectedMedia(null);
     setMediaPreview(post.video_url || post.image_url || '');
@@ -331,22 +342,28 @@ const Community = () => {
             </select>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="block">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Media</span>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[180px]">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Post Type</label>
+              <select
+                value={form.postType}
+                onChange={(e) => handlePostTypeChange(e.target.value)}
+                className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 cursor-pointer"
+              >
+                <option value="text">Text</option>
+                <option value="image">Image</option>
+                <option value="video">Video</option>
+                <option value="audio">Audio</option>
+              </select>
+            </div>
+            {form.postType !== 'text' ? <label className="block">
+              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">{form.postType === 'audio' ? 'Audio File' : form.postType === 'video' ? 'Video File' : 'Image File'}</span>
               <span className="flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-[#151e32] border border-[#334155] transition-colors rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px] cursor-pointer">
-                <FaPhotoVideo className="text-slate-400" />
+                {form.postType === 'audio' ? <FaFileAudio className="text-slate-400" /> : <FaPhotoVideo className="text-slate-400" />}
                 <span>{selectedMedia || mediaPreview ? 'Change' : 'Add'}</span>
               </span>
-              <input type="file" accept="image/*,video/mp4,video/quicktime,video/webm" className="hidden" onChange={handleMediaChange} />
-            </label>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Post Type</label>
-              <div className="flex items-center justify-center gap-2 bg-[#0f172a] border border-[#334155] rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px]">
-                <FaPlus className="text-slate-400 text-xs" />
-                <span>{editingPostId ? 'Update' : 'Broadcast'}</span>
-              </div>
-            </div>
+              <input type="file" accept={form.postType === 'audio' ? 'audio/*' : form.postType === 'video' ? 'video/mp4,video/quicktime,video/webm' : 'image/*'} className="hidden" onChange={handleMediaChange} />
+            </label> : null}
           </div>
         </div>
 
@@ -361,7 +378,7 @@ const Community = () => {
           />
         </div>
 
-        <div className="mb-4">
+        {form.postType === 'video' ? <div className="mb-4">
           <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">Video Link</label>
           <input
             type="url"
@@ -380,11 +397,13 @@ const Community = () => {
           <p className="mt-2 text-[11px] leading-4 text-slate-500">
             Supported: YouTube watch/share/shorts, Vimeo links, and direct MP4/MOV/WEBM file URLs.
           </p>
-        </div>
+        </div> : null}
 
         {mediaPreview ? (
           <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3">
-            {selectedMedia?.media_kind === 'video' || (!selectedMedia && /\.(mp4|mov|webm)(\?|$)/i.test(mediaPreview)) ? (
+            {selectedMedia?.media_kind === 'audio' ? (
+              <audio src={mediaPreview} controls className="w-full" />
+            ) : selectedMedia?.media_kind === 'video' || (!selectedMedia && /\.(mp4|mov|webm)(\?|$)/i.test(mediaPreview)) ? (
               <video src={mediaPreview} controls className="w-full max-h-64 rounded-lg bg-black" />
             ) : (
               <img src={mediaPreview} alt="Community upload preview" className="w-full max-h-64 object-cover rounded-lg" />
