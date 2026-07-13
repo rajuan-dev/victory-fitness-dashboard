@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { FaFileAudio, FaPhotoVideo, FaTrash } from 'react-icons/fa';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FaFileAudio, FaMicrophone, FaPhotoVideo, FaStop, FaTrash } from 'react-icons/fa';
 import { BiBroadcast } from 'react-icons/bi';
 import { adminApiRequest } from '../../../services/auth.service';
 import { uploadAdminCommunityVideo } from '../../../services/admin-workouts.service';
@@ -113,6 +113,10 @@ const Community = () => {
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState('');
   const [externalVideoUrl, setExternalVideoUrl] = useState('');
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef(null);
+  const recordingStreamRef = useRef(null);
+  const recordingChunksRef = useRef([]);
   const [clearMedia, setClearMedia] = useState(false);
   const [expandedComments, setExpandedComments] = useState({});
   const [commentDrafts, setCommentDrafts] = useState({});
@@ -140,6 +144,11 @@ const Community = () => {
   }, []);
 
   const resetForm = () => {
+    if (recording) {
+      recorderRef.current?.stop();
+    }
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    setRecording(false);
     setForm(EMPTY_FORM);
     setEditingPostId('');
     setSelectedMedia(null);
@@ -149,11 +158,56 @@ const Community = () => {
   };
 
   const handlePostTypeChange = (postType) => {
+    if (recording) {
+      recorderRef.current?.stop();
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+      setRecording(false);
+    }
     setForm((current) => ({ ...current, postType }));
     setSelectedMedia(null);
     setMediaPreview('');
     setExternalVideoUrl('');
     setClearMedia(false);
+  };
+
+  const toggleVoiceRecording = async () => {
+    if (recording) {
+      recorderRef.current?.stop();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setError('Voice recording is not supported in this browser. Upload an audio file instead.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' });
+      recordingStreamRef.current = stream;
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordingChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(recordingChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = typeof reader.result === 'string' ? reader.result : '';
+          setSelectedMedia({ audio_base64: result.split(',')[1] || '', mime_type: blob.type || 'audio/webm', file_name: 'community-voice.webm', media_kind: 'audio' });
+          setMediaPreview(URL.createObjectURL(blob));
+          setExternalVideoUrl('');
+        };
+        reader.readAsDataURL(blob);
+        stream.getTracks().forEach((track) => track.stop());
+        recordingStreamRef.current = null;
+        setRecording(false);
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+      setError('');
+    } catch (recordError) {
+      setError(recordError.message || 'Microphone permission was not granted.');
+    }
   };
 
   const handleMediaChange = (event) => {
@@ -207,6 +261,7 @@ const Community = () => {
             image_base64: selectedMedia.image_base64,
             mime_type: selectedMedia.mime_type,
             file_name: selectedMedia.file_name,
+            audio_base64: selectedMedia.audio_base64,
           }
         : {};
       if (editingPostId) {
@@ -364,6 +419,9 @@ const Community = () => {
               </span>
               <input type="file" accept={form.postType === 'audio' ? 'audio/*' : form.postType === 'video' ? 'video/mp4,video/quicktime,video/webm' : 'image/*'} className="hidden" onChange={handleMediaChange} />
             </label> : null}
+            {form.postType === 'audio' ? <button type="button" onClick={() => void toggleVoiceRecording()} className={`h-[46px] inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors ${recording ? 'border-rose-400/50 bg-rose-500/15 text-rose-200' : 'border-teal-500/40 bg-teal-500/10 text-teal-200'}`}>
+              {recording ? <FaStop /> : <FaMicrophone />} {recording ? 'Stop recording' : 'Record voice'}
+            </button> : null}
           </div>
         </div>
 
@@ -542,6 +600,8 @@ const Community = () => {
                         <video src={post.video_url} controls className="mt-1 max-h-64 rounded-lg border border-[#334155] bg-black" />
                       )}
                     </div>
+                  ) : post.audio_url ? (
+                    <div className="pl-11"><audio src={post.audio_url} controls className="mt-1 w-full max-w-xl" /></div>
                   ) : null}
 
                   <div className="pl-11 pt-2">
