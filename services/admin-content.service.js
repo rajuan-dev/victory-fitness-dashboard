@@ -187,3 +187,35 @@ export const listAdminSubscribers = async ({ page = 1, limit = 100, query = "", 
     throw new Error(wrapContentError(error, "Failed to load subscribers"));
   }
 };
+
+export const listAdminHomepageQuotes = async ({ signal } = {}) => {
+  try {
+    return await adminApiRequest("/admin/homepage/quotes", { signal });
+  } catch (error) {
+    throw new Error(wrapContentError(error, "Failed to load homepage quotes"));
+  }
+};
+
+export const addAdminHomepageQuote = async (payload) => {
+  try {
+    return await adminApiRequest("/admin/homepage/quotes", { method: "POST", body: payload });
+  } catch (error) {
+    throw new Error(wrapContentError(error, "Failed to add homepage quote"));
+  }
+};
+
+export const replaceAdminHomepageQuotes = async (items) => {
+  try {
+    return await adminApiRequest("/admin/homepage/quotes", { method: "PUT", body: { items } });
+  } catch (error) {
+    throw new Error(wrapContentError(error, "Failed to update homepage quotes"));
+  }
+};
+
+export const getAdminTrialConversion = async ({ signal } = {}) => {
+  try {
+    return await adminApiRequest("/admin/analytics/trial-conversion", { signal });
+  } catch (error) {
+    throw new Error(wrapContentError(error, "Failed to load trial conversion data"));
+  }
+};

@@ -1,7 +1,8 @@
 import { decodeAuthToken } from "../utils/decode-access-token";
 import { getFromLocalStorage, setToLocalStorage } from "../utils/local-storage";
 
-const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/$/, "");
+const API_URL = (import.meta.env.VITE_API_URL || "https://victory-fitness-backend.vercel.app").replace(/\/$/, "");
+const API_URL_STORAGE_KEY = "victoryAdminApiUrl";
 let sessionBootstrapPromise = null;
 
 // Store user info in localStorage
@@ -120,6 +121,49 @@ const storeAuthSession = (data) => {
   storeUserToken({ accessToken: data.access_token });
   storeSessionToken({ sessionToken: data.session_token });
   storeUserInfo(data.user);
+  if (typeof window !== "undefined") {
+    localStorage.setItem(API_URL_STORAGE_KEY, API_URL);
+  }
+};
+
+const syncStoredApiUrl = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const storedApiUrl = localStorage.getItem(API_URL_STORAGE_KEY) || "";
+  const hasStoredAuth =
+    !!localStorage.getItem("accessToken") ||
+    !!localStorage.getItem("sessionToken") ||
+    !!localStorage.getItem("userData");
+
+  if (storedApiUrl !== API_URL && hasStoredAuth) {
+    clearUserInfo();
+  }
+
+  localStorage.setItem(API_URL_STORAGE_KEY, API_URL);
+};
+
+export const logoutAdmin = async () => {
+  const token = getUserToken();
+  const sessionToken = getSessionToken();
+
+  try {
+    await fetch(`${API_URL}/auth/logout`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: "include",
+      body: sessionToken ? JSON.stringify({ session_token: sessionToken }) : undefined,
+    });
+  } catch {
+    // Local logout should still complete if the backend request fails.
+  } finally {
+    clearUserInfo();
+  }
 };
 
 export const refreshAdminSession = async () => {
@@ -302,3 +346,5 @@ export const clearUserInfo = () => {
     localStorage.removeItem("resetEmail");
   }
 };
+
+syncStoredApiUrl();

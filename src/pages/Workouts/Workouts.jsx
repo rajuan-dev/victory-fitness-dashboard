@@ -89,6 +89,10 @@ const normalizeWorkoutVideoPreviewUrl = (source, rawVideoUrl, rawVimeoId) => {
   return "";
 };
 
+const isVimeoPlaybackRestricted = (workout) =>
+  String(workout?.videoSource || "VIMEO").toUpperCase() === "VIMEO" &&
+  String(workout?.providerVisibility || "Published").trim().toLowerCase() !== "published";
+
 function WorkoutCardSkeleton() {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-slate-700/50 bg-slate-800/80 p-3 animate-pulse">
@@ -115,6 +119,7 @@ const Workouts = () => {
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [editingWorkout, setEditingWorkout] = useState(null);
   const [previewWorkout, setPreviewWorkout] = useState(null);
+  const [syncSummary, setSyncSummary] = useState(null);
   const [error, setError] = useState("");
   const [selectedThumbnail, setSelectedThumbnail] = useState(null);
   const [selectedVideo, setSelectedVideo] = useState(null);
@@ -132,6 +137,17 @@ const Workouts = () => {
       selectedVideo?.preview ||
       normalizeWorkoutVideoPreviewUrl(watchedVideoSource, watchedVideoUrl, watchedVimeoId),
     [selectedVideo, watchedVideoSource, watchedVideoUrl, watchedVimeoId],
+  );
+  const newlySyncedVideos = useMemo(
+    () =>
+      Array.isArray(syncSummary?.syncedVideos)
+        ? syncSummary.syncedVideos.filter((video) => !video?.alreadyInLibrary)
+        : [],
+    [syncSummary],
+  );
+  const newlySyncedVideoIds = useMemo(
+    () => new Set(newlySyncedVideos.map((video) => String(video?.vimeoId || "").trim()).filter(Boolean)),
+    [newlySyncedVideos],
   );
 
   useEffect(() => {
@@ -344,8 +360,17 @@ const Workouts = () => {
     try {
       setIsSyncing(true);
       const result = await syncAdminWorkouts();
+      setSyncSummary({
+        syncedCount: result?.syncedCount ?? 0,
+        modulesSynced: result?.modulesSynced ?? 0,
+        videosDiscovered: result?.videosDiscovered ?? 0,
+        syncedVideos: Array.isArray(result?.syncedVideos) ? result.syncedVideos : [],
+      });
       await reloadWorkouts();
-      message.success(result.message || "Workout library synced");
+      message.success(
+        result?.message ||
+          `Imported ${result?.syncedCount ?? 0} Vimeo workout${result?.syncedCount === 1 ? "" : "s"} as draft-ready items`,
+      );
     } catch (requestError) {
       message.error(requestError instanceof Error ? requestError.message : "Failed to sync workouts");
     } finally {
@@ -360,7 +385,9 @@ const Workouts = () => {
           <h1 className="text-2xl font-bold text-slate-800 md:text-3xl">
             Workout Library ({workouts.length})
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Manage the admin workout library from the backend.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Import Vimeo videos into the library, review them as drafts, then publish only the workouts you want live.
+          </p>
         </div>
         <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
           <div className="relative min-w-[16rem]">
@@ -379,7 +406,7 @@ const Workouts = () => {
             className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-teal-500/30 bg-slate-800 px-4 py-2.5 font-semibold text-teal-400 transition-all hover:bg-slate-700 disabled:opacity-50 md:flex-none"
           >
             <FiRefreshCw className={isSyncing ? "animate-spin" : ""} />
-            {isSyncing ? "Syncing..." : "Sync Vimeo"}
+            {isSyncing ? "Syncing..." : "Import From Vimeo"}
           </button>
           <button
             onClick={handleAdd}
@@ -390,6 +417,58 @@ const Workouts = () => {
           </button>
         </div>
       </div>
+
+      {syncSummary ? (
+        <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  New Vimeo Imports
+                </h2>
+                <p className="text-sm text-slate-700">
+                  Only brand-new videos from this sync are shown here. All synced workouts are stored in MongoDB and loaded below as cards.
+                </p>
+              </div>
+              <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                <span className="font-semibold text-slate-900">{newlySyncedVideos.length}</span> new video
+                {newlySyncedVideos.length === 1 ? "" : "s"} added this sync
+              </div>
+            </div>
+            {newlySyncedVideos.length > 0 ? (
+              <div className="space-y-2">
+                {newlySyncedVideos.map((video) => (
+                  <div
+                    key={`${video.vimeoId}-${video.tag}`}
+                    className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-slate-700"
+                  >
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div className="space-y-1">
+                        <div className="font-semibold text-slate-900">{video.title || "Untitled Vimeo Workout"}</div>
+                        <div className="text-xs text-slate-500">
+                          Module: {video.tag || "Vimeo"}{video.vimeoId ? ` | Vimeo ID: ${video.vimeoId}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
+                          {video.visibility || "Draft"}
+                        </span>
+                        <span className="rounded-full bg-emerald-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">
+                          New In MongoDB
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                No new Vimeo videos were added in this sync. Existing stored workouts were checked and kept.
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
@@ -411,9 +490,18 @@ const Workouts = () => {
           workouts.map((workout) => (
             <div
               key={workout.id}
-              className="group relative flex cursor-pointer items-center gap-4 rounded-xl border border-[#334155] bg-[#1e293b] p-3 transition-all hover:border-slate-500 hover:bg-[#253245]"
+              className={`group relative flex cursor-pointer items-center gap-4 rounded-xl border p-3 transition-all hover:bg-[#253245] ${
+                newlySyncedVideoIds.has(String(workout.vimeoId || "").trim())
+                  ? "border-emerald-400/60 bg-[#20333a] shadow-[0_0_0_1px_rgba(52,211,153,0.18)] hover:border-emerald-300"
+                  : "border-[#334155] bg-[#1e293b] hover:border-slate-500"
+              }`}
               onClick={() => handlePreview(workout)}
             >
+              {newlySyncedVideoIds.has(String(workout.vimeoId || "").trim()) ? (
+                <div className="absolute left-3 top-3 z-10 rounded-full bg-emerald-400 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-950">
+                  Just Synced
+                </div>
+              ) : null}
               <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-md bg-slate-700">
                 <img src={workout.thumbnail || DEFAULT_THUMBNAIL} alt={workout.title} className="h-full w-full object-cover" />
                 <div className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
@@ -421,12 +509,12 @@ const Workouts = () => {
                 </div>
               </div>
 
-              <div className="min-w-0 flex-1 pr-6">
+              <div className="min-w-0 flex-1 pr-6 pt-6">
                 <h3 className="mb-1 truncate text-sm font-semibold text-slate-100" title={workout.title}>
                   {workout.title}
                 </h3>
                 <p className="mb-2 mt-0.5 truncate text-xs text-slate-400">
-                  {workout.videoSource || "VIMEO"}{workout.vimeoId ? ` · Vimeo ID: ${workout.vimeoId}` : ""}
+                  {workout.videoSource || "VIMEO"}{workout.vimeoId ? ` | Vimeo ID: ${workout.vimeoId}` : ""}
                 </p>
                 <div className="mt-auto flex items-center gap-2">
                   <span className="rounded bg-teal-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300">
@@ -499,12 +587,32 @@ const Workouts = () => {
                     className="h-full w-full bg-black object-contain"
                     controls
                   />
+                ) : isVimeoPlaybackRestricted(previewWorkout) ? (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-slate-950 px-6 text-center">
+                    <div className="max-w-xl space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300">
+                        Vimeo Playback Restricted
+                      </p>
+                      <h3 className="text-2xl font-bold text-white">This Vimeo video cannot be embedded here.</h3>
+                      <p className="text-sm text-slate-300">
+                        Vimeo is blocking in-app playback for this video because its privacy setting is restricted. The workout is still stored in MongoDB and can remain in the library as a draft or published card.
+                      </p>
+                    </div>
+                    <a
+                      href={previewWorkout.videoUrl || `https://vimeo.com/${encodeURIComponent(previewWorkout.vimeoId)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200"
+                    >
+                      Open On Vimeo
+                    </a>
+                  </div>
                 ) : (
                   <iframe
                     src={previewWorkout.videoUrl || normalizeWorkoutVideoPreviewUrl("VIMEO", "", previewWorkout.vimeoId)}
                     title={previewWorkout.title}
                     className="h-full w-full"
-                    allow="autoplay; fullscreen; picture-in-picture"
+                    allow="autoplay; picture-in-picture"
                     allowFullScreen
                   />
                 )}
@@ -526,11 +634,22 @@ const Workouts = () => {
                   >
                     {previewWorkout.visibility}
                   </span>
+                  {String(previewWorkout.videoSource || "VIMEO").toUpperCase() === "VIMEO" ? (
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
+                        isVimeoPlaybackRestricted(previewWorkout)
+                          ? "bg-amber-500/10 text-amber-600"
+                          : "bg-emerald-500/10 text-emerald-600"
+                      }`}
+                    >
+                      {isVimeoPlaybackRestricted(previewWorkout) ? "Vimeo Restricted" : "Vimeo Playable"}
+                    </span>
+                  ) : null}
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900">{previewWorkout.title}</h2>
                 <p className="mt-2 text-sm text-slate-500">
                   Source: {previewWorkout.videoSource || "VIMEO"}
-                  {previewWorkout.vimeoId ? ` · Vimeo ID: ${previewWorkout.vimeoId}` : ""}
+                  {previewWorkout.vimeoId ? ` | Vimeo ID: ${previewWorkout.vimeoId}` : ""}
                 </p>
               </div>
 

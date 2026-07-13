@@ -11,6 +11,14 @@ import {
   updateAdminSubscriptionPlan,
 } from '../../../services/admin-content.service';
 
+const formatEuroPrice = (price) => {
+  if (price == null) {
+    return null;
+  }
+
+  return `EUR ${price}`;
+};
+
 const Subscriptions = () => {
   const [plans, setPlans] = useState([]);
   const [isYearly, setIsYearly] = useState(true);
@@ -64,6 +72,27 @@ const Subscriptions = () => {
     return Math.max(Math.round(price * (100 - discountPercentage) / 100), 0);
   };
 
+  const getPlanPricingDetails = (plan, yearly) => {
+    const originalPrice = yearly ? plan.priceYearly : plan.priceMonthly;
+    const discountActive = isDiscountActive(plan);
+    const discountedPrice = getDiscountedPrice(originalPrice, plan.discountPercentage, discountActive);
+    const hasDiscount = (
+      !plan.isApplicationOnly &&
+      discountActive &&
+      originalPrice != null &&
+      discountedPrice != null &&
+      discountedPrice !== originalPrice
+    );
+
+    return {
+      discountActive,
+      originalPrice,
+      discountedPrice,
+      hasDiscount,
+      cycleLabel: yearly ? 'year' : 'month',
+    };
+  };
+
   const handleAdd = () => {
     setEditingPlan(null);
     form.resetFields();
@@ -100,10 +129,24 @@ const Subscriptions = () => {
 
   const handleSubmit = async (values) => {
     try {
+      const discountPercentage =
+        values.discountPercentage == null || values.discountPercentage === ''
+          ? null
+          : Number(values.discountPercentage);
+      const isApplicationOnly = Boolean(values.isApplicationOnly);
       const payload = {
         ...values,
-        discountStartDate: values.discountStartDate ? values.discountStartDate.toISOString() : null,
-        discountEndDate: values.discountEndDate ? values.discountEndDate.toISOString() : null,
+        priceMonthly: isApplicationOnly ? null : values.priceMonthly,
+        priceYearly: isApplicationOnly ? null : values.priceYearly,
+        discountPercentage: isApplicationOnly ? null : discountPercentage,
+        discountStartDate:
+          !isApplicationOnly && discountPercentage != null && values.discountStartDate
+            ? values.discountStartDate.toISOString()
+            : null,
+        discountEndDate:
+          !isApplicationOnly && discountPercentage != null && values.discountEndDate
+            ? values.discountEndDate.toISOString()
+            : null,
       };
       if (editingPlan) {
         const updated = await updateAdminSubscriptionPlan(editingPlan.id, payload);
@@ -175,9 +218,7 @@ const Subscriptions = () => {
 
       <div className="flex flex-wrap justify-center items-stretch gap-6 w-full mx-auto px-4">
         {plans.map((plan) => {
-          const discountActive = isDiscountActive(plan);
-          const originalPrice = isYearly ? plan.priceYearly : plan.priceMonthly;
-          const discountedPrice = getDiscountedPrice(originalPrice, plan.discountPercentage, discountActive);
+          const pricing = getPlanPricingDetails(plan, isYearly);
 
           return (
             <div
@@ -235,21 +276,32 @@ const Subscriptions = () => {
                   <div>
                     <h4 className="text-[28px] font-bold text-white leading-tight break-words">Application Only</h4>
                   </div>
-                ) : discountActive && originalPrice != null && discountedPrice != null && discountedPrice !== originalPrice ? (
+                ) : pricing.hasDiscount ? (
                   <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-emerald-300">-{plan.discountPercentage}%</span>
-                      <span className="text-sm text-slate-500 line-through">EUR {originalPrice}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="rounded-full bg-emerald-400/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-300">
+                        Offer -{plan.discountPercentage}%
+                      </span>
+                      <span className="text-sm text-slate-500 line-through">
+                        {formatEuroPrice(pricing.originalPrice)}
+                      </span>
                     </div>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-[32px] font-bold text-white">EUR {discountedPrice}</span>
-                      <span className="text-slate-400 text-sm font-medium">per {isYearly ? 'year' : 'month'}</span>
+                      <span className="text-[32px] font-bold text-white">
+                        {formatEuroPrice(pricing.discountedPrice)}
+                      </span>
+                      <span className="text-slate-400 text-sm font-medium">per {pricing.cycleLabel}</span>
                     </div>
+                    <p className="text-xs font-medium text-emerald-200/85">
+                      You save {formatEuroPrice(pricing.originalPrice - pricing.discountedPrice)}
+                    </p>
                   </div>
                 ) : (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-[32px] font-bold text-white">EUR {originalPrice}</span>
-                    <span className="text-slate-400 text-sm font-medium">per {isYearly ? 'year' : 'month'}</span>
+                    <span className="text-[32px] font-bold text-white">
+                      {formatEuroPrice(pricing.originalPrice)}
+                    </span>
+                    <span className="text-slate-400 text-sm font-medium">per {pricing.cycleLabel}</span>
                   </div>
                 )}
                 {!plan.isApplicationOnly && isYearly && plan.priceMonthly ? (

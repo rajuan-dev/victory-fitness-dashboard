@@ -109,3 +109,35 @@ export const uploadAdminWorkoutVideo = async (file) => {
     throw new Error(createFriendlyWorkoutError(error, "Failed to upload workout video"));
   }
 };
+
+export const uploadAdminCommunityVideo = async (file) => {
+  const contentType = String(file?.type || "video/mp4").trim() || "video/mp4";
+  const fileName = String(file?.name || "community-video.mp4").trim() || "community-video.mp4";
+
+  try {
+    const directUpload = await adminApiRequest("/admin/uploads/presign", {
+      method: "POST",
+      body: {
+        uploadType: "COMMUNITY_VIDEO",
+        contentType,
+        fileName,
+      },
+    });
+
+    const uploadResponse = await fetch(directUpload.uploadUrl, {
+      method: "PUT",
+      headers: {
+        ...(directUpload.headers || {}),
+      },
+      body: file,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`S3 upload failed with status ${uploadResponse.status}`);
+    }
+
+    return directUpload.fileUrl;
+  } catch (error) {
+    throw new Error(createFriendlyWorkoutError(error, "Failed to upload community video"));
+  }
+};
