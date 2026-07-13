@@ -26,6 +26,7 @@ const AllSubscribers = lazy(() => import("../pages/Subscribers/AllSubscribers"))
 const Applications = lazy(() => import("../pages/Applications/Applications"));
 const SupportInbox = lazy(() => import("../pages/SupportInbox/SupportInbox"));
 const Homepage = lazy(() => import("../pages/Homepage/Homepage"));
+const TrialAnalytics = lazy(() => import("../pages/TrialAnalytics/TrialAnalytics"));
 
 function RouteFallback() {
   return (
@@ -115,6 +116,10 @@ const router = createBrowserRouter([
       {
         path: "/homepage",
         element: withSuspense(Homepage),
+      },
+      {
+        path: "/trial-analytics",
+        element: withSuspense(TrialAnalytics),
       },
 
       // settings
