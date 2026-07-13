@@ -204,14 +204,6 @@ export const addAdminHomepageQuote = async (payload) => {
   }
 };
 
-export const addAdminHomepageQuotesBulk = async (items) => {
-  try {
-    return await adminApiRequest("/admin/homepage/quotes/bulk", { method: "POST", body: { items } });
-  } catch (error) {
-    throw new Error(wrapContentError(error, "Failed to import homepage quotes"));
-  }
-};
-
 export const replaceAdminHomepageQuotes = async (items) => {
   try {
     return await adminApiRequest("/admin/homepage/quotes", { method: "PUT", body: { items } });
