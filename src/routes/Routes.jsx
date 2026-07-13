@@ -114,7 +114,7 @@ const router = createBrowserRouter([
         element: withSuspense(SupportInbox),
       },
       {
-        path: "/homepage",
+        path: "/quotes",
         element: withSuspense(Homepage),
       },
       {

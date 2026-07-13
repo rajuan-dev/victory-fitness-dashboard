@@ -266,11 +266,11 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
             </li>
           </Link>
 
-          <Link to="/homepage" onClick={handleLinkClick}>
-            <li className={`group flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-in-out list-none ${isActive("/homepage") ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl shadow-lg shadow-blue-500/30 scale-[1.02]" : "text-slate-700 hover:bg-white/70 hover:shadow-md px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl hover:scale-[1.01]"}`}>
+          <Link to="/quotes" onClick={handleLinkClick}>
+            <li className={`group flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 ease-in-out list-none ${isActive("/quotes") ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl shadow-lg shadow-blue-500/30 scale-[1.02]" : "text-slate-700 hover:bg-white/70 hover:shadow-md px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl hover:scale-[1.01]"}`}>
               <MdFormatQuote className="w-4 h-4 sm:w-5 sm:h-5" />
-              <p className="text-xs sm:text-sm font-semibold">Homepage & Trials</p>
-              {isActive("/homepage") && <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>}
+              <p className="text-xs sm:text-sm font-semibold">Quotes</p>
+              {isActive("/quotes") && <div className="ml-auto w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>}
             </li>
           </Link>
 
