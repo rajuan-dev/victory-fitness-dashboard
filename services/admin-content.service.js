@@ -97,6 +97,17 @@ export const markAllAdminNotificationsRead = async () => {
   }
 };
 
+export const sendTestPushNotification = async (email) => {
+  try {
+    return await adminApiRequest("/admin/notifications/test", {
+      method: "POST",
+      body: { email },
+    });
+  } catch (error) {
+    throw new Error(wrapContentError(error, "Failed to send test notification"));
+  }
+};
+
 export const listAdminSubscriptionPlans = async ({ signal } = {}) => {
   try {
     return await adminApiRequest("/admin/subscription-plans", { signal });

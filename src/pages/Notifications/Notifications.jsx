@@ -6,6 +6,7 @@ import {
   listAdminNotifications,
   markAllAdminNotificationsRead,
   updateAdminNotification,
+  sendTestPushNotification,
 } from "../../../services/admin-content.service";
 
 function timeAgo(dateString) {
@@ -33,6 +34,9 @@ export default function Notifications() {
   
   const [allNotifications, setAllNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [testEmail, setTestEmail] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -92,6 +96,26 @@ export default function Notifications() {
     }
   };
 
+  const sendTestNotification = async () => {
+    if (!testEmail.trim()) {
+      setTestResult({ type: "error", text: "Enter the app user email first." });
+      return;
+    }
+    setTestSending(true);
+    setTestResult(null);
+    try {
+      const response = await sendTestPushNotification(testEmail.trim());
+      setTestResult({
+        type: "success",
+        text: `Test sent. Registered devices: ${response?.registeredDevices ?? 0}.`,
+      });
+    } catch (err) {
+      setTestResult({ type: "error", text: err.message || "Could not send test notification." });
+    } finally {
+      setTestSending(false);
+    }
+  };
+
   return (
     <div className="p-5 min-h-screen">
       <div className="bg-blue-600 px-4 md:px-5 py-3 rounded-md mb-3 flex flex-wrap md:flex-nowrap items-start md:items-center gap-2 md:gap-3">
@@ -112,6 +136,23 @@ export default function Notifications() {
             </Button>
           </div>
         )}
+      </div>
+      <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+        <h2 className="text-base font-semibold text-blue-900">Test app push notification</h2>
+        <p className="mt-1 text-sm text-blue-700">Enter a registered app user email. The test will be sent only to that user&apos;s devices.</p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={testEmail}
+            onChange={(event) => setTestEmail(event.target.value)}
+            placeholder="app-user@example.com"
+            type="email"
+            className="min-h-9 flex-1 rounded-md border border-blue-200 bg-white px-3 text-sm outline-none focus:border-blue-500"
+          />
+          <Button type="primary" loading={testSending} onClick={sendTestNotification}>
+            Send test push
+          </Button>
+        </div>
+        {testResult ? <p className={`mt-2 text-sm ${testResult.type === "success" ? "text-green-700" : "text-red-600"}`}>{testResult.text}</p> : null}
       </div>
       <ConfigProvider
         theme={{
