@@ -207,6 +207,17 @@ export const ensureAdminSession = async () => {
 };
 
 export const adminApiRequest = async (path, options = {}) => {
+  const currentToken = getUserToken();
+  const tokenPayload = currentToken ? decodeAuthToken(currentToken) : null;
+  const tokenExpiresAt = Number(tokenPayload?.exp || 0) * 1000;
+  if (currentToken && (!tokenExpiresAt || tokenExpiresAt - Date.now() < 60_000)) {
+    const refreshed = await refreshAdminSession();
+    if (!refreshed) {
+      clearUserInfo();
+      throw new Error("Session expired");
+    }
+  }
+
   const makeRequest = async () => {
     const token = getUserToken();
     return fetch(`${API_URL}${path}`, {
