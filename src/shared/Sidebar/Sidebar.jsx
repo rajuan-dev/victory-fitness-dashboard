@@ -286,6 +286,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         {/* Divider */}
         <div className="my-4 sm:my-6 mx-2 sm:mx-3 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent"></div>
 
+        <Link to="/audit-logs" onClick={handleLinkClick}>
+          <li className={`group flex items-center gap-2 sm:gap-3 cursor-pointer transition-all duration-300 list-none ${isActive("/audit-logs") ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl shadow-lg shadow-blue-500/30" : "text-slate-700 hover:bg-white/70 px-3 sm:px-4 py-2.5 sm:py-3.5 rounded-lg sm:rounded-xl"}`}>
+            <MdAnalytics className="w-4 h-4 sm:w-5 sm:h-5" />
+            <p className="text-xs sm:text-sm font-semibold">Audit Logs</p>
+          </li>
+        </Link>
+
         {/* Settings Section */}
         <div className="space-y-0.5 sm:space-y-1">
           <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 sm:px-3 mb-2 sm:mb-3">

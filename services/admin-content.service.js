@@ -230,3 +230,11 @@ export const getAdminTrialConversion = async ({ signal } = {}) => {
     throw new Error(wrapContentError(error, "Failed to load trial conversion data"));
   }
 };
+
+export const listAdminAuditLogs = async ({ limit = 100, signal } = {}) => {
+  try {
+    return await adminApiRequest(`/admin/audit-logs?limit=${encodeURIComponent(limit)}`, { signal });
+  } catch (error) {
+    throw new Error(wrapContentError(error, "Failed to load audit logs"));
+  }
+};
