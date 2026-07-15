@@ -218,13 +218,15 @@ const Community = () => {
 
   // Flagging system states
   const [flaggedPostIds, setFlaggedPostIds] = useState([]);
-  const [baseFlaggedCount] = useState(14);
+  const [baseFlaggedCount, setBaseFlaggedCount] = useState(0);
+  const [topContributors, setTopContributors] = useState([]);
+  const [trendingHashtags, setTrendingHashtags] = useState([]);
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'guidelines' or 'announcements' or null
 
   // Broadcast Creator card visibility
-  const [showBroadcastCreator, setShowBroadcastCreator] = useState(false);
+  const [showBroadcastCreator, setShowBroadcastCreator] = useState(true);
 
   const submitLabel = useMemo(() => (editingPostId ? 'Save Changes' : 'Send Broadcast to Tier'), [editingPostId]);
 
@@ -232,11 +234,21 @@ const Community = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await adminApiRequest('/admin/community/posts');
+      const [response, contributorsResponse, trendingResponse, shortcutsResponse] = await Promise.all([
+        adminApiRequest('/admin/community/feed'),
+        adminApiRequest('/admin/community/top-contributors').catch(() => ({ contributors: [] })),
+        adminApiRequest('/admin/community/trending').catch(() => ({ hashtags: [] })),
+        adminApiRequest('/admin/community/shortcuts').catch(() => ({ items: [] })),
+      ]);
       const apiPosts = Array.isArray(response?.posts) ? response.posts : [];
       
       // Combine API posts with the seed posts
       setPosts([...apiPosts, ...DEMO_SEED_POSTS]);
+      setFlaggedPostIds(apiPosts.filter((post) => post.flagged).map((post) => post.id));
+      setTopContributors(Array.isArray(contributorsResponse?.contributors) ? contributorsResponse.contributors : []);
+      setTrendingHashtags(Array.isArray(trendingResponse?.hashtags) ? trendingResponse.hashtags : []);
+      const flaggedShortcut = Array.isArray(shortcutsResponse?.items) ? shortcutsResponse.items.find((item) => item.key === 'flagged_posts') : null;
+      setBaseFlaggedCount(Number(flaggedShortcut?.count || 0));
     } catch (loadError) {
       setError(loadError.message || 'Failed to load community posts');
       setPosts(DEMO_SEED_POSTS);
@@ -404,7 +416,7 @@ const Community = () => {
         setSuccess('Community post updated');
       } else {
         // Create new post
-        const res = await adminApiRequest('/admin/community/posts', {
+        const res = await adminApiRequest('/admin/community/broadcast', {
           method: 'POST',
           body: {
             content,
@@ -505,8 +517,19 @@ const Community = () => {
     }
   };
 
-  const handleToggleFlag = (postId) => {
+  const handleToggleFlag = async (postId) => {
     const isFlagged = flaggedPostIds.includes(postId);
+    if (!String(postId).startsWith('demo-')) {
+      try {
+        await adminApiRequest(`/admin/community/posts/${postId}`, {
+          method: 'PATCH',
+          body: { flagged: !isFlagged, flag_reason: !isFlagged ? 'Admin review' : '' },
+        });
+      } catch (flagError) {
+        setError(flagError.message || 'Failed to update post flag');
+        return;
+      }
+    }
     if (isFlagged) {
       setFlaggedPostIds(prev => prev.filter(id => id !== postId));
       setSuccess('Post unflagged');
@@ -1199,7 +1222,23 @@ const Community = () => {
               <h3 className="text-base font-bold text-white tracking-wide">Top Contributors</h3>
             </div>
             <div className="space-y-3">
-              {/* Jason Miller */}
+              {topContributors.length > 0 && topContributors.slice(0, 3).map((contributor, index) => (
+                <div key={contributor.userId || contributor.name || index} className="flex items-center justify-between group p-2 rounded-lg transition-all duration-200 hover:bg-[#0f172a]/40">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative shrink-0">
+                      {contributor.profileImage ? <img src={contributor.profileImage} className="w-9 h-9 rounded-full object-cover border border-[#334155]" alt={contributor.name} /> : <div className="w-9 h-9 rounded-full bg-[#26334d] border border-[#334155] flex items-center justify-center text-xs font-bold text-teal-300">{String(contributor.name || '?').charAt(0).toUpperCase()}</div>}
+                      <span className="absolute -top-1 -right-1 bg-teal-400 text-slate-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#111c2e]">{index + 1}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-200 truncate">{contributor.name || 'Community member'}</p>
+                      <p className="text-[10px] text-slate-400">{contributor.postCount || 0} posts • {contributor.likeCount || 0} likes</p>
+                    </div>
+                  </div>
+                  <FaChevronRight className="text-slate-500 text-[10px]" />
+                </div>
+              ))}
+              {topContributors.length === 0 && (
+              <>
               <div className="flex items-center justify-between group cursor-pointer hover:bg-[#0f172a]/40 p-2 rounded-lg transition-all duration-200">
                 <div className="flex items-center gap-3">
                   <div className="relative">
@@ -1253,6 +1292,8 @@ const Community = () => {
                 </div>
                 <FaChevronRight className="text-slate-500 text-[10px] group-hover:translate-x-0.5 transition-transform" />
               </div>
+              </>
+              )}
             </div>
             <button 
               onClick={() => alert("Leaderboards are updated dynamically based on weekly activity.")}
@@ -1269,7 +1310,7 @@ const Community = () => {
               <h3 className="text-base font-bold text-white tracking-wide">Trending Now</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {['#FitAdminPro', '#DeadliftDay', '#MorningMobility', '#MealPrep', '#Hypertrophy', '#YogaFlow'].map(tag => (
+              {(trendingHashtags.length ? trendingHashtags.map(({ tag }) => tag) : ['#FitAdminPro', '#DeadliftDay', '#MorningMobility', '#MealPrep', '#Hypertrophy', '#YogaFlow']).map(tag => (
                 <button
                   key={tag}
                   onClick={() => setHashtagFilter(hashtagFilter === tag ? null : tag)}
