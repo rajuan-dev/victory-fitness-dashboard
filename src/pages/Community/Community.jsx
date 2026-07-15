@@ -224,7 +224,7 @@ const Community = () => {
   const [activeModal, setActiveModal] = useState(null); // 'guidelines' or 'announcements' or null
 
   // Broadcast Creator card visibility
-  const [showBroadcastCreator, setShowBroadcastCreator] = useState(false);
+  const [showBroadcastCreator, setShowBroadcastCreator] = useState(true);
 
   const submitLabel = useMemo(() => (editingPostId ? 'Save Changes' : 'Send Broadcast to Tier'), [editingPostId]);
 
