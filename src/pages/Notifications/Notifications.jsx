@@ -10,21 +10,25 @@ import {
 } from "../../../services/admin-content.service";
 
 function timeAgo(dateString) {
-  const now = new Date();
-  const past = new Date(dateString);
-  const seconds = Math.floor((now - past) / 1000);
-  const intervals = [
-    { label: "y", seconds: 31536000 },
-    { label: "mo", seconds: 2592000 },
-    { label: "d", seconds: 86400 },
-    { label: "h", seconds: 3600 },
-    { label: "m", seconds: 60 },
-  ];
-  for (const { label, seconds: s } of intervals) {
-    const count = Math.floor(seconds / s);
-    if (count >= 1) return `${count}${label} ago`;
+  const timestamp = new Date(dateString).getTime();
+  if (!Number.isFinite(timestamp)) return "Not available";
+
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+  if (days < 28) {
+    const weeks = Math.floor(days / 7);
+    return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
   }
-  return "Just now";
+
+  const months = Math.floor(days / 28);
+  return `${months} month${months === 1 ? "" : "s"} ago`;
 }
 
 export default function Notifications() {
