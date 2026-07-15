@@ -4,6 +4,7 @@ import { getFromLocalStorage, setToLocalStorage } from "../utils/local-storage";
 const API_URL = (import.meta.env.VITE_API_URL || "https://victory-fitness-backend.vercel.app").replace(/\/$/, "");
 const API_URL_STORAGE_KEY = "victoryAdminApiUrl";
 let sessionBootstrapPromise = null;
+let serverSessionVerified = false;
 
 // Store user info in localStorage
 export const storeUserInfo = (userData) => {
@@ -124,6 +125,7 @@ const storeAuthSession = (data) => {
   if (typeof window !== "undefined") {
     localStorage.setItem(API_URL_STORAGE_KEY, API_URL);
   }
+  serverSessionVerified = true;
 };
 
 const syncStoredApiUrl = () => {
@@ -180,16 +182,18 @@ export const refreshAdminSession = async () => {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data?.user?.is_admin) {
+    serverSessionVerified = false;
     clearUserInfo();
     return false;
   }
 
   storeAuthSession(data);
+  serverSessionVerified = true;
   return true;
 };
 
 export const ensureAdminSession = async () => {
-  if (hasAdminAccess()) {
+  if (serverSessionVerified && hasAdminAccess()) {
     return true;
   }
 
@@ -333,6 +337,7 @@ export const resetPasswordWithToken = async ({ resetToken, newPassword }) => {
 
 // Remove the access token from localStorage
 export const removeAccessToken = () => {
+  serverSessionVerified = false;
   if (typeof window !== "undefined") {
     localStorage.removeItem("accessToken");
   }
@@ -340,6 +345,7 @@ export const removeAccessToken = () => {
 
 // Remove all user info from localStorage
 export const clearUserInfo = () => {
+  serverSessionVerified = false;
   if (typeof window !== "undefined") {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("sessionToken");
