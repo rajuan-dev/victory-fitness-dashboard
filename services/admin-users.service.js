@@ -51,6 +51,22 @@ export const getUserManagementOverview = async ({
   }
 };
 
+export const getTrialCohorts = async ({ signal } = {}) => {
+  try {
+    return await adminApiRequest("/admin/trials/cohorts", { signal });
+  } catch (error) {
+    throw new Error(createFriendlyUserManagementError(error, "Failed to load trial cohorts"));
+  }
+};
+
+export const getTrialDropouts = async ({ limit = 100, signal } = {}) => {
+  try {
+    return await adminApiRequest(`/admin/trials/dropouts?limit=${encodeURIComponent(limit)}`, { signal });
+  } catch (error) {
+    throw new Error(createFriendlyUserManagementError(error, "Failed to load trial dropouts"));
+  }
+};
+
 export const getAdminUser = async (userId, { signal } = {}) => {
   try {
     return await adminApiRequest(`/admin/users/${userId}`, { signal });

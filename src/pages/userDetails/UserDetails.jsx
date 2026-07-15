@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { FaRegEye } from "react-icons/fa";
 import { AiOutlineDelete } from "react-icons/ai";
 import TotalUsers from "../User Management/TotalUsers";
-import { deleteAdminUser, getAdminUser, getUserManagementOverview } from "../../../services/admin-users.service";
+import { deleteAdminUser, getAdminUser, getTrialCohorts, getTrialDropouts, getUserManagementOverview } from "../../../services/admin-users.service";
 import DetailModal from "../../components/dashboard/DetailModal";
 import {
   addBillingCycleToDate,
@@ -155,6 +155,8 @@ function UserDetails() {
   const [usersData, setUsersData] = useState([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [summary, setSummary] = useState(DEFAULT_SUMMARY);
+  const [trialCohorts, setTrialCohorts] = useState([]);
+  const [trialDropouts, setTrialDropouts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isViewLoading, setIsViewLoading] = useState(false);
@@ -171,12 +173,11 @@ function UserDetails() {
       setError("");
 
       try {
-        const data = await getUserManagementOverview({
-          page: currentPage,
-          limit: pageSize,
-          query: searchQuery,
-          signal: controller.signal,
-        });
+        const [data, cohortData, dropoutData] = await Promise.all([
+          getUserManagementOverview({ page: currentPage, limit: pageSize, query: searchQuery, signal: controller.signal }),
+          getTrialCohorts({ signal: controller.signal }).catch(() => ({ cohorts: [] })),
+          getTrialDropouts({ signal: controller.signal }).catch(() => ({ users: [] })),
+        ]);
 
         if (!isMounted) {
           return;
@@ -185,6 +186,8 @@ function UserDetails() {
         setSummary(data.summary || DEFAULT_SUMMARY);
         setUsersData(data.table?.users || []);
         setTotalUsers(data.table?.total || 0);
+        setTrialCohorts(cohortData.cohorts || []);
+        setTrialDropouts(dropoutData.users || []);
       } catch (requestError) {
         if (!isMounted) {
           return;
@@ -402,6 +405,28 @@ function UserDetails() {
       </div>
 
       <TotalUsers summary={summary} isLoading={isLoading} error={error} />
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Trial cohorts</h2>
+              <p className="text-sm text-slate-500">Conversion and day-by-day engagement by signup month and source.</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs uppercase text-slate-500"><tr><th className="py-2">Cohort</th><th>Source</th><th>Users</th><th>Converted</th><th>Rate</th></tr></thead>
+              <tbody>{trialCohorts.length ? trialCohorts.map((cohort) => <tr key={`${cohort.cohort}-${cohort.signupSource}`} className="border-t border-slate-100"><td className="py-2 font-medium">{cohort.cohort}</td><td>{cohort.signupSource}</td><td>{cohort.totalUsers}</td><td>{cohort.convertedUsers}</td><td>{cohort.conversionRate}%</td></tr>) : <tr><td colSpan="5" className="py-6 text-center text-slate-400">No trial cohort data yet.</td></tr>}</tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="mb-4"><h2 className="text-lg font-bold text-slate-900">Dropout list</h2><p className="text-sm text-slate-600">Consented trial users who reached day 5 without converting.</p></div>
+          <div className="space-y-3">{trialDropouts.length ? trialDropouts.slice(0, 8).map((dropout) => <div key={dropout.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3"><div><div className="font-semibold text-slate-900">{dropout.fullName}</div><div className="text-xs text-slate-500">{dropout.email} · {dropout.signupSource}</div></div><div className="text-right text-xs text-slate-500"><div>{dropout.coachMessages} coach messages</div><div>{dropout.nutritionPlanCreated ? "Nutrition plan created" : "No nutrition plan"}</div></div></div>) : <div className="py-6 text-center text-slate-500">No consented dropouts found.</div>}</div>
+        </section>
+      </div>
 
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
