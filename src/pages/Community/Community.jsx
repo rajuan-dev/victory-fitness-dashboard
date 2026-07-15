@@ -1,6 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FaFileAudio, FaMicrophone, FaPhotoVideo, FaStop, FaTrash } from 'react-icons/fa';
+import { 
+  FaFileAudio, 
+  FaMicrophone, 
+  FaPhotoVideo, 
+  FaStop, 
+  FaTrash, 
+  FaChevronRight, 
+  FaHeart, 
+  FaRegHeart, 
+  FaComment, 
+  FaRegComment, 
+  FaShare, 
+  FaTrophy, 
+  FaHashtag, 
+  FaShieldAlt, 
+  FaPlus, 
+  FaTimes, 
+  FaRegImage, 
+  FaVideo 
+} from 'react-icons/fa';
 import { BiBroadcast } from 'react-icons/bi';
+import { FiRefreshCw } from 'react-icons/fi';
+import { IoSendOutline } from 'react-icons/io5';
 import { adminApiRequest } from '../../../services/auth.service';
 import { uploadAdminCommunityVideo } from '../../../services/admin-workouts.service';
 
@@ -17,6 +38,71 @@ const EMPTY_FORM = {
   message: '',
   postType: 'text',
 };
+
+const DEMO_SEED_POSTS = [
+  {
+    id: 'demo-post-1',
+    author_id: 'author-1',
+    author_name: 'Marcus Thorne',
+    author_role: 'GOLD',
+    author_profile_image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop',
+    author_handle: '@m_thorne_fit',
+    content: 'Hit a new PR on deadlifts today! 455lbs for a triple. The morning stack of oats and the new pre-workout really made the difference. Shoutout to Coach Alex for the form corrections last week. #DeadliftDay #Gainz #FitAdminPro',
+    image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=800&auto=format&fit=crop',
+    like_count: 124,
+    comment_count: 18,
+    share_count: 5,
+    viewer_has_liked: false,
+    can_delete: false,
+    audience: 'GOLD',
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    comments: [
+      {
+        id: 'demo-comment-1-1',
+        author_name: 'Coach Alex',
+        author_profile_image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop',
+        content: 'Solid form Marcus! Keep pushing hard.',
+        created_at: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString()
+      }
+    ]
+  },
+  {
+    id: 'demo-post-2',
+    author_id: 'author-2',
+    author_name: 'Sarah Jenkins',
+    author_role: 'SILVER',
+    author_profile_image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop',
+    author_handle: '@s_jenkins_yoga',
+    content: '"The only bad workout is the one that didn\'t happen." Really feeling that today after pushing through a 6 AM mobility session when I just wanted to hit snooze. Consistency > Intensity.',
+    like_count: 82,
+    comment_count: 12,
+    share_count: 0,
+    viewer_has_liked: false,
+    can_delete: false,
+    audience: 'SILVER',
+    created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    comments: []
+  },
+  {
+    id: 'demo-post-3',
+    author_id: 'author-3',
+    author_name: 'Alex River',
+    author_role: 'GOLD',
+    author_profile_image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=150&auto=format&fit=crop',
+    author_handle: '@alex_river',
+    author_member_no: '#842',
+    content: 'Finally hit my PR on deadlifts today! This studio has the best energy early in the morning. Thanks for the tips @CoachSarah!',
+    image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop',
+    like_count: 45,
+    comment_count: 5,
+    share_count: 2,
+    viewer_has_liked: false,
+    can_delete: false,
+    audience: 'GOLD',
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    comments: []
+  }
+];
 
 const formatPostDate = (value) => {
   if (!value) {
@@ -124,6 +210,22 @@ const Community = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Filtering states
+  const [tierFilter, setTierFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [periodFilter, setPeriodFilter] = useState('ALL');
+  const [hashtagFilter, setHashtagFilter] = useState(null);
+
+  // Flagging system states
+  const [flaggedPostIds, setFlaggedPostIds] = useState([]);
+  const [baseFlaggedCount] = useState(14);
+
+  // Modals state
+  const [activeModal, setActiveModal] = useState(null); // 'guidelines' or 'announcements' or null
+
+  // Broadcast Creator card visibility
+  const [showBroadcastCreator, setShowBroadcastCreator] = useState(false);
+
   const submitLabel = useMemo(() => (editingPostId ? 'Save Changes' : 'Send Broadcast to Tier'), [editingPostId]);
 
   const loadPosts = async () => {
@@ -131,9 +233,13 @@ const Community = () => {
     setError('');
     try {
       const response = await adminApiRequest('/admin/community/posts');
-      setPosts(Array.isArray(response?.posts) ? response.posts : []);
+      const apiPosts = Array.isArray(response?.posts) ? response.posts : [];
+      
+      // Combine API posts with the seed posts
+      setPosts([...apiPosts, ...DEMO_SEED_POSTS]);
     } catch (loadError) {
       setError(loadError.message || 'Failed to load community posts');
+      setPosts(DEMO_SEED_POSTS);
     } finally {
       setLoading(false);
     }
@@ -155,6 +261,7 @@ const Community = () => {
     setMediaPreview('');
     setExternalVideoUrl('');
     setClearMedia(false);
+    setShowBroadcastCreator(false);
   };
 
   const handlePostTypeChange = (postType) => {
@@ -265,20 +372,39 @@ const Community = () => {
           }
         : {};
       if (editingPostId) {
-        await adminApiRequest(`/admin/community/posts/${editingPostId}`, {
-          method: 'PATCH',
-          body: {
-            content,
-            audience: form.tier,
-            clear_image: clearMedia,
-            clear_media: clearMedia,
-            external_video_url: uploadedCommunityVideoUrl || normalizedExternalVideoUrl || undefined,
-            ...mediaPayload,
-          },
-        });
+        const isDemo = String(editingPostId).startsWith('demo-');
+        if (isDemo) {
+          // Simulate locally
+          setPosts(prev => prev.map(p => {
+            if (p.id === editingPostId) {
+              return {
+                ...p,
+                content,
+                audience: form.tier,
+                image_url: form.postType === 'image' && mediaPreview ? mediaPreview : p.image_url,
+                video_url: form.postType === 'video' && (uploadedCommunityVideoUrl || normalizedExternalVideoUrl) ? (uploadedCommunityVideoUrl || normalizedExternalVideoUrl) : p.video_url,
+                audio_url: form.postType === 'audio' && mediaPreview ? mediaPreview : p.audio_url,
+              };
+            }
+            return p;
+          }));
+        } else {
+          await adminApiRequest(`/admin/community/posts/${editingPostId}`, {
+            method: 'PATCH',
+            body: {
+              content,
+              audience: form.tier,
+              clear_image: clearMedia,
+              clear_media: clearMedia,
+              external_video_url: uploadedCommunityVideoUrl || normalizedExternalVideoUrl || undefined,
+              ...mediaPayload,
+            },
+          });
+        }
         setSuccess('Community post updated');
       } else {
-        await adminApiRequest('/admin/community/posts', {
+        // Create new post
+        const res = await adminApiRequest('/admin/community/posts', {
           method: 'POST',
           body: {
             content,
@@ -287,6 +413,7 @@ const Community = () => {
             ...mediaPayload,
           },
         });
+        setPosts(prev => [res, ...prev]);
         setSuccess('Community post published');
       }
 
@@ -312,6 +439,7 @@ const Community = () => {
     setClearMedia(false);
     setSuccess('');
     setError('');
+    setShowBroadcastCreator(true);
   };
 
   const handleDelete = async (postId) => {
@@ -319,11 +447,16 @@ const Community = () => {
     setError('');
     setSuccess('');
     try {
-      await adminApiRequest(`/admin/community/posts/${postId}`, {
-        method: 'DELETE',
-      });
-      if (editingPostId === postId) {
-        resetForm();
+      const isDemo = String(postId).startsWith('demo-');
+      if (isDemo) {
+        setPosts(prev => prev.filter(p => p.id !== postId));
+      } else {
+        await adminApiRequest(`/admin/community/posts/${postId}`, {
+          method: 'DELETE',
+        });
+        if (editingPostId === postId) {
+          resetForm();
+        }
       }
       setSuccess('Community post deleted');
       await loadPosts();
@@ -331,6 +464,55 @@ const Community = () => {
       setError(deleteError.message || 'Failed to delete community post');
     } finally {
       setDeletingPostId('');
+    }
+  };
+
+  const handleToggleLike = async (postId) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    const isDemo = String(postId).startsWith('demo-');
+    if (isDemo) {
+      setPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          const nextLiked = !p.viewer_has_liked;
+          return {
+            ...p,
+            viewer_has_liked: nextLiked,
+            like_count: nextLiked ? p.like_count + 1 : p.like_count - 1
+          };
+        }
+        return p;
+      }));
+    } else {
+      try {
+        const res = await adminApiRequest(`/community/posts/${postId}/reactions/toggle`, {
+          method: 'POST'
+        });
+        setPosts(prev => prev.map(p => {
+          if (p.id === postId) {
+            return {
+              ...p,
+              viewer_has_liked: res.viewer_has_liked,
+              like_count: res.like_count
+            };
+          }
+          return p;
+        }));
+      } catch (err) {
+        setError(err.message || 'Failed to toggle like');
+      }
+    }
+  };
+
+  const handleToggleFlag = (postId) => {
+    const isFlagged = flaggedPostIds.includes(postId);
+    if (isFlagged) {
+      setFlaggedPostIds(prev => prev.filter(id => id !== postId));
+      setSuccess('Post unflagged');
+    } else {
+      setFlaggedPostIds(prev => [...prev, postId]);
+      setSuccess('Post flagged for review');
     }
   };
 
@@ -344,10 +526,22 @@ const Community = () => {
     setError('');
     setSuccess('');
     try {
-      const response = await adminApiRequest(`/community/posts/${postId}/comments`, {
-        method: 'POST',
-        body: { content },
-      });
+      const isDemo = String(postId).startsWith('demo-');
+      let response;
+      if (isDemo) {
+        response = {
+          id: `demo-comment-${Date.now()}`,
+          author_name: 'Admin',
+          author_profile_image: '/userimg.png',
+          content,
+          created_at: new Date().toISOString()
+        };
+      } else {
+        response = await adminApiRequest(`/community/posts/${postId}/comments`, {
+          method: 'POST',
+          body: { content },
+        });
+      }
 
       setCommentDrafts((current) => ({ ...current, [postId]: '' }));
       setExpandedComments((current) => ({ ...current, [postId]: true }));
@@ -357,7 +551,7 @@ const Community = () => {
             ? {
                 ...post,
                 comment_count: (post.comment_count || 0) + 1,
-                comments: [...(post.comments || []), response].slice(-6),
+                comments: [...(post.comments || []), response],
               }
             : post
         )
@@ -370,363 +564,859 @@ const Community = () => {
     }
   };
 
-  return (
-    <div className="flex flex-col space-y-8 pt-2 h-full text-slate-100 w-full pb-10">
-      <div className="bg-[#1e293b] border border-[#334155] rounded-xl p-5 md:p-6 shadow-xl relative overflow-hidden">
-        <div className="flex items-center gap-2 mb-6">
-          <BiBroadcast className="text-teal-400 text-2xl" />
-          <h2 className="text-lg font-bold text-teal-400">
-            {editingPostId ? 'Edit Community Post' : 'Send Tier Broadcast'}
-          </h2>
-        </div>
+  // Filter feed logic
+  const filteredPosts = useMemo(() => {
+    return posts.filter(post => {
+      // 1. Tier Filter
+      if (tierFilter !== 'ALL') {
+        if (post.audience !== tierFilter) return false;
+      }
 
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-          <div className="flex-1">
-            <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">Target Tier</label>
+      // 2. Type Filter
+      if (typeFilter === 'FLAGGED') {
+        if (!flaggedPostIds.includes(post.id)) return false;
+      } else if (typeFilter === 'TEXT') {
+        if (post.image_url || post.video_url || post.audio_url) return false;
+      } else if (typeFilter === 'IMAGE') {
+        if (!post.image_url) return false;
+      } else if (typeFilter === 'VIDEO') {
+        if (!post.video_url) return false;
+      }
+
+      // 3. Period Filter
+      if (periodFilter !== 'ALL') {
+        const postDate = new Date(post.created_at).getTime();
+        const now = Date.now();
+        if (periodFilter === '24h') {
+          if (now - postDate > 24 * 60 * 60 * 1000) return false;
+        } else if (periodFilter === '7d') {
+          if (now - postDate > 7 * 24 * 60 * 60 * 1000) return false;
+        } else if (periodFilter === '30d') {
+          if (now - postDate > 30 * 24 * 60 * 60 * 1000) return false;
+        }
+      }
+
+      // 4. Hashtag filter
+      if (hashtagFilter) {
+        const tag = hashtagFilter.toLowerCase();
+        const contentStr = String(post.content || '').toLowerCase();
+        if (!contentStr.includes(tag)) return false;
+      }
+
+      return true;
+    });
+  }, [posts, tierFilter, typeFilter, periodFilter, flaggedPostIds, hashtagFilter]);
+
+  return (
+    <div className="-m-3 flex min-h-full w-[calc(100%+1.5rem)] flex-col space-y-6 bg-[#0b1428] p-3 pt-2 text-slate-100 pb-10 sm:-m-4 sm:w-[calc(100%+2rem)] sm:p-4 lg:-m-6 lg:w-[calc(100%+3rem)] lg:p-6">
+      
+      {/* Top Filter Bar */}
+      <div className="bg-[#111c2e] border border-[#334155] rounded-xl p-4 flex flex-wrap items-center gap-6 justify-between shadow-lg animate-fadeIn">
+        <div className="flex flex-wrap items-center gap-6">
+          {/* Tier Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tier:</span>
             <select
-              value={form.tier}
-              onChange={(e) => setForm((current) => ({ ...current, tier: e.target.value }))}
-              className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 cursor-pointer"
-              style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="%2394a3b8" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>')`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+              value={tierFilter}
+              onChange={(e) => setTierFilter(e.target.value)}
+              className="bg-[#0f172a] border border-[#334155] text-slate-200 text-xs rounded-lg px-3 py-2 outline-none cursor-pointer focus:border-teal-500/50"
             >
-              {TIER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              <option value="ALL">All Tiers</option>
+              <option value="SILVER">Silver</option>
+              <option value="GOLD">Gold</option>
+              <option value="PLATINUM">Platinum</option>
+              <option value="INNER_CIRCLE">Inner Circle</option>
             </select>
           </div>
 
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-[180px]">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">Post Type</label>
-              <select
-                value={form.postType}
-                onChange={(e) => handlePostTypeChange(e.target.value)}
-                className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 cursor-pointer"
-              >
-                <option value="text">Text</option>
-                <option value="image">Image</option>
-                <option value="video">Video</option>
-                <option value="audio">Audio</option>
-              </select>
-            </div>
-            {form.postType !== 'text' ? <label className="block">
-              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-tight mb-2">{form.postType === 'audio' ? 'Audio File' : form.postType === 'video' ? 'Video File' : 'Image File'}</span>
-              <span className="flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-[#151e32] border border-[#334155] transition-colors rounded-lg px-4 py-2.5 text-sm text-slate-300 w-full md:w-auto h-[46px] cursor-pointer">
-                {form.postType === 'audio' ? <FaFileAudio className="text-slate-400" /> : <FaPhotoVideo className="text-slate-400" />}
-                <span>{selectedMedia || mediaPreview ? 'Change' : 'Add'}</span>
-              </span>
-              <input type="file" accept={form.postType === 'audio' ? 'audio/*' : form.postType === 'video' ? 'video/mp4,video/quicktime,video/webm' : 'image/*'} className="hidden" onChange={handleMediaChange} />
-            </label> : null}
-            {form.postType === 'audio' ? <button type="button" onClick={() => void toggleVoiceRecording()} className={`h-[46px] inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold transition-colors ${recording ? 'border-rose-400/50 bg-rose-500/15 text-rose-200' : 'border-teal-500/40 bg-teal-500/10 text-teal-200'}`}>
-              {recording ? <FaStop /> : <FaMicrophone />} {recording ? 'Stop recording' : 'Record voice'}
-            </button> : null}
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">Message Content</label>
-          <textarea
-            rows={4}
-            placeholder="Share tips, notes, or announcements with this tier..."
-            className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg p-4 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 resize-y placeholder:text-slate-500"
-            value={form.message}
-            onChange={(e) => setForm((current) => ({ ...current, message: e.target.value }))}
-          />
-        </div>
-
-        {form.postType === 'video' ? <div className="mb-4">
-          <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight mb-2">Video Link</label>
-          <input
-            type="url"
-            value={externalVideoUrl}
-            placeholder="Paste a YouTube, Vimeo, or direct video file URL"
-            onChange={(e) => {
-              const value = e.target.value;
-              setExternalVideoUrl(value);
-              if (value.trim()) {
-                setSelectedMedia(null);
-                setMediaPreview('');
-              }
-            }}
-            className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-3 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 placeholder:text-slate-500"
-          />
-          <p className="mt-2 text-[11px] leading-4 text-slate-500">
-            Supported: YouTube watch/share/shorts, Vimeo links, and direct MP4/MOV/WEBM file URLs.
-          </p>
-        </div> : null}
-
-        {mediaPreview ? (
-          <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3">
-            {selectedMedia?.media_kind === 'audio' ? (
-              <audio src={mediaPreview} controls className="w-full" />
-            ) : selectedMedia?.media_kind === 'video' || (!selectedMedia && /\.(mp4|mov|webm)(\?|$)/i.test(mediaPreview)) ? (
-              <video src={mediaPreview} controls className="w-full max-h-64 rounded-lg bg-black" />
-            ) : (
-              <img src={mediaPreview} alt="Community upload preview" className="w-full max-h-64 object-cover rounded-lg" />
-            )}
-            <div className="mt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedMedia(null);
-                  setMediaPreview('');
-                  setClearMedia(true);
-                }}
-                className="text-xs text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
-              >
-                Remove media
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {!mediaPreview && externalVideoUrl ? (
-          <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3">
-            {getVideoRenderMode(normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl) === 'embed' ? (
-              <iframe
-                src={normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl}
-                title="External community video preview"
-                className="w-full h-64 rounded-lg bg-black"
-                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            ) : (
-              <video
-                src={externalVideoUrl}
-                controls
-                className="w-full max-h-64 rounded-lg bg-black"
-              />
-            )}
-            <div className="mt-3 flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setExternalVideoUrl('');
-                  setClearMedia(true);
-                }}
-                className="text-xs text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
-              >
-                Remove link
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {error ? <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
-        {success ? <div className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{success}</div> : null}
-
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex-1 bg-[#283648] hover:bg-[#33445a] text-[#c7d7ed] font-semibold py-3 rounded-lg transition-colors border border-[#324357] disabled:opacity-60"
-          >
-            {saving ? 'Saving...' : submitLabel}
-          </button>
-          {editingPostId ? (
-            <button
-              type="button"
-              onClick={resetForm}
-              disabled={saving}
-              className="bg-transparent border border-[#334155] text-slate-300 px-5 py-3 rounded-lg hover:bg-[#111827] transition-colors"
+          {/* Type Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type:</span>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="bg-[#0f172a] border border-[#334155] text-slate-200 text-xs rounded-lg px-3 py-2 outline-none cursor-pointer focus:border-teal-500/50"
             >
-              Cancel
-            </button>
-          ) : null}
+              <option value="ALL">All Posts</option>
+              <option value="FLAGGED">Flagged for Review</option>
+              <option value="TEXT">Text Only</option>
+              <option value="IMAGE">Images Only</option>
+              <option value="VIDEO">Videos Only</option>
+            </select>
+          </div>
+
+          {/* Period Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Period:</span>
+            <select
+              value={periodFilter}
+              onChange={(e) => setPeriodFilter(e.target.value)}
+              className="bg-[#0f172a] border border-[#334155] text-slate-200 text-xs rounded-lg px-3 py-2 outline-none cursor-pointer focus:border-teal-500/50"
+            >
+              <option value="ALL">All Time</option>
+              <option value="24h">Last 24 Hours</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+            </select>
+          </div>
         </div>
+
+        <button
+          onClick={() => {
+            loadPosts();
+            setSuccess('Feed refreshed');
+          }}
+          className="flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white transition-colors cursor-pointer"
+        >
+          <FiRefreshCw className={`text-teal-400 ${loading ? 'animate-spin' : ''}`} />
+          Refresh Feed
+        </button>
       </div>
 
-      <div>
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <h2 className="text-xl font-bold text-white tracking-wide">Recent Community Activity</h2>
-          <span className="bg-[#243142] border border-[#334155] text-slate-400 text-[11px] font-semibold px-3 py-1 rounded-full">
-            {posts.length} Posts
+      {/* Active Hashtag Filter Notification */}
+      {hashtagFilter && (
+        <div className="bg-[#111c2e] border border-teal-500/30 rounded-xl p-3 flex items-center justify-between text-sm animate-fadeIn">
+          <span>
+            Filtering by tag: <span className="font-semibold text-teal-400">{hashtagFilter}</span>
           </span>
+          <button
+            onClick={() => setHashtagFilter(null)}
+            className="text-xs text-rose-400 hover:underline font-bold"
+          >
+            Clear Filter
+          </button>
         </div>
+      )}
 
-        {loading ? <div className="text-sm text-slate-400">Loading community posts...</div> : null}
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start animate-fadeIn">
+        
+        {/* Left Column: Creator and Feed */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Send Tier Broadcast Card (Toggled FAB) */}
+          {showBroadcastCreator && (
+            <div className="bg-[#111c2e] border border-[#334155] rounded-xl p-5 md:p-6 shadow-xl relative overflow-hidden transition-all duration-300">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <IoMegaphoneOutline className="text-teal-400 text-2xl" />
+                  <h2 className="text-lg font-bold text-teal-400">
+                    {editingPostId ? 'Edit Community Post' : 'Send Tier Broadcast'}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <FaTimes />
+                </button>
+              </div>
 
-        {!loading && posts.length === 0 ? (
-          <div className="bg-[#1e293b] border border-[#334155] rounded-xl p-4 text-sm text-slate-300">
-            No community posts yet.
-          </div>
-        ) : null}
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+                <div className="flex-1">
+                  <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Target Tier</label>
+                  <select
+                    value={form.tier}
+                    onChange={(e) => setForm((current) => ({ ...current, tier: e.target.value }))}
+                    className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-teal-500/50 cursor-pointer"
+                  >
+                    {TIER_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-        <div className="space-y-3">
-          {posts.map((post) => (
-            <div key={post.id} className="bg-[#1e293b] border border-[#334155] rounded-xl p-4 flex flex-col hover:border-slate-500 transition-colors relative group">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex flex-col gap-2 min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {post.author_profile_image ? (
-                      <img
-                        src={post.author_profile_image}
-                        alt={post.author_name || "Author"}
-                        className="w-8 h-8 rounded-full object-cover border border-[#334155] shrink-0"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-[#0cd7d3] flex items-center justify-center font-bold text-[#0f172a] text-sm shrink-0">
-                        {(post.author_name || 'A').slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
-                    <span className="font-semibold text-white text-sm">{post.author_name}</span>
-                    <span className="text-[11px] text-slate-400">{formatPostDate(post.created_at)}</span>
-                    <span className="bg-[#2a374a] text-[#9baec2] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                      {post.audience}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider text-slate-500">{post.author_role}</span>
+                <div className="flex-1 min-w-[280px]">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Post Type</label>
+                  
+                  {/* Styled Post Type Selector Cards */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { value: 'text', label: 'Text', renderIcon: () => <span className="text-sm font-bold font-serif leading-none mt-1 select-none">Tt</span> },
+                      { value: 'image', label: 'Image', renderIcon: () => <FaRegImage size={14} /> },
+                      { value: 'video', label: 'Video', renderIcon: () => <FaVideo size={14} /> },
+                      { value: 'audio', label: 'Audio', renderIcon: () => <FaMicrophone size={14} /> },
+                    ].map((type) => {
+                      const isSelected = form.postType === type.value;
+                      return (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => handlePostTypeChange(type.value)}
+                          className={`flex flex-col items-center justify-center p-2 rounded-lg border transition-all cursor-pointer h-14 ${
+                            isSelected
+                              ? 'bg-gradient-to-b from-[#1e293b] to-[#0f172a] border-teal-400 text-teal-300 shadow-md shadow-teal-500/10'
+                              : 'bg-[#0f172a] border-[#334155] text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                          }`}
+                        >
+                          {type.renderIcon()}
+                          <span className="text-[10px] font-semibold mt-1">{type.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <p className="text-[13px] text-slate-300 pl-11 whitespace-pre-wrap">{post.content}</p>
-                  {post.image_url ? (
-                    <div className="pl-11">
-                      <img src={post.image_url} alt="Community post" className="mt-1 max-h-64 rounded-lg border border-[#334155] object-cover" />
-                    </div>
-                  ) : post.video_url ? (
-                    <div className="pl-11">
-                      {getVideoRenderMode(post.video_url) === 'embed' ? (
-                        <iframe
-                          src={post.video_url}
-                          title={`Community video ${post.id}`}
-                          className="mt-1 h-64 w-full rounded-lg border border-[#334155] bg-black"
-                          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                          allowFullScreen
-                          referrerPolicy="strict-origin-when-cross-origin"
-                        />
-                      ) : (
-                        <video src={post.video_url} controls className="mt-1 max-h-64 rounded-lg border border-[#334155] bg-black" />
-                      )}
-                    </div>
-                  ) : post.audio_url ? (
-                    <div className="pl-11"><audio src={post.audio_url} controls className="mt-1 w-full max-w-xl" /></div>
-                  ) : null}
+                </div>
+              </div>
 
-                  <div className="pl-11 pt-2">
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                      <span>{post.like_count || 0} reactions</span>
-                      <span>{post.comment_count || 0} comments</span>
-                    </div>
+              {/* Dynamic Uploader Row */}
+              {form.postType !== 'text' && (
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <label className="block cursor-pointer">
+                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {form.postType === 'audio' ? 'Audio File' : form.postType === 'video' ? 'Video File' : 'Image File'}
+                    </span>
+                    <span className="flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-[#151e32] border border-[#334155] transition-colors rounded-lg px-4 py-2 text-sm text-slate-300 h-[46px] cursor-pointer">
+                      {form.postType === 'audio' ? <FaFileAudio className="text-slate-400" /> : <FaPhotoVideo className="text-slate-400" />}
+                      <span>{selectedMedia || mediaPreview ? 'Change Media' : 'Add Media File'}</span>
+                    </span>
+                    <input 
+                      type="file" 
+                      accept={form.postType === 'audio' ? 'audio/*' : form.postType === 'video' ? 'video/mp4,video/quicktime,video/webm' : 'image/*'} 
+                      className="hidden" 
+                      onChange={handleMediaChange} 
+                    />
+                  </label>
 
-                    {(post.reactions?.length ?? 0) > 0 ? (
-                      <div className="mt-3 rounded-xl border border-[#334155] bg-[#0f172a] px-3 py-3">
-                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                          Reacted By
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {post.reactions.map((reaction) => (
-                            <div
-                              key={`${post.id}-${reaction.user_id}-${reaction.created_at}`}
-                              className="flex items-center gap-2 rounded-full border border-[#334155] bg-[#111827] px-2.5 py-1.5"
-                            >
-                              {reaction.user_profile_image ? (
-                                <img
-                                  src={reaction.user_profile_image}
-                                  alt={reaction.user_name}
-                                  className="w-5 h-5 rounded-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-5 h-5 rounded-full bg-[#334155] flex items-center justify-center text-[10px] font-bold text-white">
-                                  {(reaction.user_name || "U").slice(0, 1).toUpperCase()}
-                                </div>
-                              )}
-                              <span className="text-[11px] text-slate-200">{reaction.user_name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
+                  {form.postType === 'audio' && (
+                    <button 
+                      type="button" 
+                      onClick={() => void toggleVoiceRecording()} 
+                      className={`h-[46px] self-end inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors cursor-pointer ${
+                        recording 
+                          ? 'border-rose-500 bg-rose-500/10 text-rose-200' 
+                          : 'border-teal-500/40 bg-teal-500/10 text-teal-200'
+                      }`}
+                    >
+                      {recording ? <FaStop /> : <FaMicrophone />} {recording ? 'Stop recording' : 'Record voice'}
+                    </button>
+                  )}
+                </div>
+              )}
 
+              {/* Message Input */}
+              <div className="mb-4">
+                <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Message Content</label>
+                <textarea
+                  rows={4}
+                  placeholder="Share tips, notes, or announcements with this tier..."
+                  className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg p-4 outline-none focus:border-teal-500/50 resize-y placeholder:text-slate-500"
+                  value={form.message}
+                  onChange={(e) => setForm((current) => ({ ...current, message: e.target.value }))}
+                />
+              </div>
+
+              {/* Video URL Input */}
+              {form.postType === 'video' && (
+                <div className="mb-4">
+                  <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Video Link</label>
+                  <input
+                    type="url"
+                    value={externalVideoUrl}
+                    placeholder="Paste a YouTube, Vimeo, or direct video file URL"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setExternalVideoUrl(value);
+                      if (value.trim()) {
+                        setSelectedMedia(null);
+                        setMediaPreview('');
+                      }
+                    }}
+                    className="w-full bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-4 py-3 outline-none focus:border-teal-500/50 placeholder:text-slate-500"
+                  />
+                  <p className="mt-2 text-[10px] text-slate-500">
+                    Supported: YouTube watch/share/shorts, Vimeo links, and direct MP4/MOV/WEBM file URLs.
+                  </p>
+                </div>
+              )}
+
+              {/* Media Preview Box */}
+              {mediaPreview && (
+                <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3 animate-fadeIn">
+                  {selectedMedia?.media_kind === 'audio' ? (
+                    <audio src={mediaPreview} controls className="w-full" />
+                  ) : selectedMedia?.media_kind === 'video' || (!selectedMedia && /\.(mp4|mov|webm)(\?|$)/i.test(mediaPreview)) ? (
+                    <video src={mediaPreview} controls className="w-full max-h-64 rounded-lg bg-black" />
+                  ) : (
+                    <img src={mediaPreview} alt="Community upload preview" className="w-full max-h-64 object-cover rounded-lg" />
+                  )}
+                  <div className="mt-3 flex justify-end">
                     <button
                       type="button"
-                      onClick={() =>
-                        setExpandedComments((current) => ({
-                          ...current,
-                          [post.id]: !current[post.id],
-                        }))
-                      }
-                      className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                      onClick={() => {
+                        setSelectedMedia(null);
+                        setMediaPreview('');
+                        setClearMedia(true);
+                      }}
+                      className="text-xs text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
                     >
-                      {expandedComments[post.id] ? 'Hide comments' : `Comments (${post.comment_count || 0})`}
+                      Remove media
                     </button>
+                  </div>
+                </div>
+              )}
 
-                    {(expandedComments[post.id] || (post.comments?.length ?? 0) > 0) ? (
-                      <div className="mt-3 space-y-3">
-                        {(post.comments || []).map((comment) => (
-                          <div key={comment.id} className="flex items-start gap-3">
-                            {comment.author_profile_image ? (
-                              <img
-                                src={comment.author_profile_image}
-                                alt={comment.author_name}
-                                className="w-7 h-7 rounded-full object-cover border border-[#334155]"
-                              />
-                            ) : (
-                              <div className="w-7 h-7 rounded-full bg-[#334155] flex items-center justify-center text-[11px] font-bold text-white">
-                                {(comment.author_name || 'A').slice(0, 1).toUpperCase()}
-                              </div>
-                            )}
-                            <div className="flex-1 rounded-xl bg-[#0f172a] border border-[#334155] px-3 py-2">
-                              <div className="flex flex-wrap items-center gap-2 mb-1">
-                                <span className="text-xs font-semibold text-white">{comment.author_name}</span>
-                                <span className="text-[11px] text-slate-400">{formatPostDate(comment.created_at)}</span>
-                              </div>
-                              <p className="text-xs text-slate-300 whitespace-pre-wrap">{comment.content}</p>
-                            </div>
+              {!mediaPreview && externalVideoUrl && (
+                <div className="mb-6 rounded-xl border border-[#334155] bg-[#0f172a] p-3 animate-fadeIn">
+                  {getVideoRenderMode(normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl) === 'embed' ? (
+                    <iframe
+                      src={normalizeExternalVideoUrl(externalVideoUrl) || externalVideoUrl}
+                      title="External video preview"
+                      className="w-full h-64 rounded-lg bg-black"
+                      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                      allowFullScreen
+                      referrerPolicy="strict-origin-when-cross-origin"
+                    />
+                  ) : (
+                    <video
+                      src={externalVideoUrl}
+                      controls
+                      className="w-full max-h-64 rounded-lg bg-black"
+                    />
+                  )}
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExternalVideoUrl('');
+                        setClearMedia(true);
+                      }}
+                      className="text-xs text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                    >
+                      Remove link
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Form Buttons */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={saving}
+                  className="flex-1 bg-[#5d5fef] hover:bg-[#4d4fd9] text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-60"
+                >
+                  <IoSendOutline />
+                  {saving ? 'Sending...' : submitLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  disabled={saving}
+                  className="bg-transparent border border-[#334155] text-slate-300 px-5 py-3 rounded-lg hover:bg-[#0f172a] transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Feed Title and Counter */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white tracking-wide">
+              Community Activity
+            </h2>
+            <span className="bg-[#111c2e] border border-[#334155] text-slate-400 text-xs font-semibold px-3 py-1 rounded-full">
+              {filteredPosts.length} Posts
+            </span>
+          </div>
+
+          {/* Loader or Empty Feed Message */}
+          {loading ? (
+            <div className="text-sm text-slate-400 flex items-center gap-2">
+              <FiRefreshCw className="animate-spin text-teal-400" />
+              Loading posts...
+            </div>
+          ) : null}
+
+          {!loading && filteredPosts.length === 0 ? (
+            <div className="bg-[#111c2e] border border-[#334155] rounded-xl p-6 text-center text-sm text-slate-400 shadow-md">
+              No matching community posts found. Try clearing your filters or hashtag query.
+            </div>
+          ) : null}
+
+          {/* List of Posts */}
+          <div className="space-y-4">
+            {filteredPosts.map((post) => {
+              const isFlagged = flaggedPostIds.includes(post.id);
+              const isQuote = String(post.content || '').startsWith('"') && String(post.content || '').endsWith('.');
+              
+              // Dynamic Badge Class
+              let badgeColorClass = 'bg-slate-500/10 text-slate-300 border-slate-500/30';
+              if (post.author_role === 'GOLD') {
+                badgeColorClass = 'bg-amber-500/10 text-amber-300 border-amber-500/30';
+              } else if (post.author_role === 'SILVER') {
+                badgeColorClass = 'bg-slate-300/10 text-slate-200 border-slate-300/30';
+              } else if (post.author_role === 'PLATINUM') {
+                badgeColorClass = 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30';
+              } else if (post.author_role?.toLowerCase() === 'admin' || post.author_role?.toLowerCase() === 'coach') {
+                badgeColorClass = 'bg-teal-500/10 text-teal-300 border-teal-500/30';
+              }
+
+              return (
+                <div 
+                  key={post.id} 
+                  className={`bg-[#111c2e] border transition-all rounded-xl p-5 shadow-lg flex flex-col hover:border-slate-500/50 ${
+                    isFlagged ? 'border-rose-500/50 shadow-rose-950/10' : 'border-[#334155]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      {/* Post Header */}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {post.author_profile_image ? (
+                          <img
+                            src={post.author_profile_image}
+                            alt={post.author_name}
+                            className="w-10 h-10 rounded-full object-cover border border-[#334155]"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-teal-400 flex items-center justify-center font-black text-slate-900 text-sm">
+                            {(post.author_name || 'A').slice(0, 1).toUpperCase()}
                           </div>
-                        ))}
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white text-sm hover:underline cursor-pointer">{post.author_name}</span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${badgeColorClass}`}>
+                              {post.author_role}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                            <span>{post.author_handle || `@${(post.author_name || '').toLowerCase().replace(' ', '_')}`}</span>
+                            <span>•</span>
+                            <span>{formatPostDate(post.created_at)}</span>
+                            {post.author_member_no && (
+                              <>
+                                <span>•</span>
+                                <span className="text-[10px] text-teal-400/80 font-mono">{post.author_member_no}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
 
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={commentDrafts[post.id] || ''}
-                            onChange={(e) =>
-                              setCommentDrafts((current) => ({
+                      {/* Content Body */}
+                      <p className={`text-sm text-slate-300 mt-4 leading-relaxed whitespace-pre-wrap pl-1 ${isQuote ? 'italic text-slate-100 font-serif border-l-2 border-teal-400 pl-4 py-1' : ''}`}>
+                        {post.content}
+                      </p>
+
+                      {/* Media Attachments */}
+                      {post.image_url && (
+                        <div className="mt-4 rounded-lg overflow-hidden border border-[#334155]/60 bg-black/20 max-h-96">
+                          <img src={post.image_url} alt="Post attachment" className="w-full object-contain max-h-96" />
+                        </div>
+                      )}
+
+                      {post.video_url && (
+                        <div className="mt-4 rounded-lg overflow-hidden border border-[#334155]/60 bg-black/40">
+                          {getVideoRenderMode(post.video_url) === 'embed' ? (
+                            <iframe
+                              src={post.video_url}
+                              title={`Video-${post.id}`}
+                              className="h-64 w-full bg-black"
+                              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                              allowFullScreen
+                              referrerPolicy="strict-origin-when-cross-origin"
+                            />
+                          ) : (
+                            <video src={post.video_url} controls className="w-full max-h-80 bg-black" />
+                          )}
+                        </div>
+                      )}
+
+                      {post.audio_url && (
+                        <div className="mt-4 p-2 bg-[#0f172a] rounded-lg border border-[#334155]/60">
+                          <audio src={post.audio_url} controls className="w-full" />
+                        </div>
+                      )}
+
+                      {/* Post Actions & Stats Footer */}
+                      <div className="mt-5 pt-4 border-t border-[#334155]/60 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-5 text-slate-400 text-xs">
+                          {/* Heart/Like Button */}
+                          <button
+                            onClick={() => handleToggleLike(post.id)}
+                            className={`flex items-center gap-1.5 transition-colors cursor-pointer group ${
+                              post.viewer_has_liked ? 'text-rose-400' : 'hover:text-rose-400'
+                            }`}
+                          >
+                            {post.viewer_has_liked ? <FaHeart /> : <FaRegHeart className="group-hover:scale-110 transition-transform animate-pulse" />}
+                            <span className="font-bold">{post.like_count || 0}</span>
+                          </button>
+
+                          {/* Comments Toggle */}
+                          <button
+                            onClick={() =>
+                              setExpandedComments((current) => ({
                                 ...current,
-                                [post.id]: e.target.value,
+                                [post.id]: !current[post.id],
                               }))
                             }
-                            placeholder="Write an admin comment..."
-                            className="flex-1 bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50 placeholder:text-slate-500 text-sm"
-                          />
+                            className="flex items-center gap-1.5 hover:text-teal-400 transition-colors cursor-pointer"
+                          >
+                            <FaRegComment />
+                            <span className="font-bold">{post.comment_count || 0}</span>
+                          </button>
+
+                          {/* Share Button */}
+                          <button
+                            onClick={() => {
+                              setSuccess('Link copied to clipboard!');
+                              navigator.clipboard.writeText(window.location.href);
+                            }}
+                            className="flex items-center gap-1.5 hover:text-indigo-400 transition-colors cursor-pointer"
+                          >
+                            <FaShare />
+                            <span className="font-bold">{post.share_count || 0}</span>
+                          </button>
+                        </div>
+
+                        {/* Right: Flags and Edit/Delete */}
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => handleSubmitComment(post.id)}
-                            disabled={commentSubmitting[post.id]}
-                            className="bg-teal-400 text-slate-950 font-semibold px-4 py-2.5 rounded-lg disabled:opacity-60"
+                            onClick={() => handleToggleFlag(post.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                              isFlagged
+                                ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600'
+                                : 'border-rose-500/30 text-rose-300 hover:bg-rose-500/10'
+                            }`}
                           >
-                            {commentSubmitting[post.id] ? '...' : 'Send'}
+                            {isFlagged ? 'Flagged' : 'Flag for Review'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(post)}
+                            className="text-xs text-slate-300 border border-[#334155] px-3 py-1.5 rounded-lg hover:bg-[#0f172a] hover:border-slate-400 transition-all cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(post.id)}
+                            disabled={deletingPostId === post.id}
+                            className="text-slate-400 hover:text-rose-400 p-2 transition-colors cursor-pointer"
+                            aria-label="Delete post"
+                          >
+                            <FaTrash className="text-xs" />
                           </button>
                         </div>
                       </div>
-                    ) : null}
+
+                      {/* Comments Collapsible Panel */}
+                      {expandedComments[post.id] && (
+                        <div className="mt-5 pt-4 border-t border-[#334155]/40 space-y-4 animate-fadeIn">
+                          <div className="space-y-3">
+                            {(post.comments || []).map((comment) => (
+                              <div key={comment.id} className="flex items-start gap-3 text-xs">
+                                {comment.author_profile_image ? (
+                                  <img
+                                    src={comment.author_profile_image}
+                                    alt={comment.author_name}
+                                    className="w-7 h-7 rounded-full object-cover border border-[#334155]"
+                                  />
+                                ) : (
+                                  <div className="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center font-bold text-white">
+                                    {(comment.author_name || 'A').slice(0, 1).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="flex-1 rounded-xl bg-[#0f172a] border border-[#334155] px-3 py-2">
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-semibold text-white">{comment.author_name}</span>
+                                    <span className="text-[10px] text-slate-500">{formatPostDate(comment.created_at)}</span>
+                                  </div>
+                                  <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Write Comment Box */}
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={commentDrafts[post.id] || ''}
+                              onChange={(e) =>
+                                setCommentDrafts((current) => ({
+                                  ...current,
+                                  [post.id]: e.target.value,
+                                }))
+                              }
+                              placeholder="Write a comment..."
+                              className="flex-1 bg-[#0f172a] border border-[#334155] text-slate-200 rounded-lg px-3 py-2.5 outline-none focus:border-teal-500/50 placeholder:text-slate-500 text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSubmitComment(post.id)}
+                              disabled={commentSubmitting[post.id]}
+                              className="bg-teal-400 hover:bg-teal-300 text-slate-950 font-bold px-4 py-2.5 rounded-lg text-xs cursor-pointer disabled:opacity-60 transition-colors"
+                            >
+                              {commentSubmitting[post.id] ? '...' : 'Send'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(post)}
-                    className="text-xs text-slate-300 border border-[#334155] px-3 py-1.5 rounded-lg hover:bg-[#111827] transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(post.id)}
-                    disabled={deletingPostId === post.id}
-                    className="text-slate-500 hover:text-red-300 p-2 transition-colors"
-                    aria-label="Delete post"
-                  >
-                    <FaTrash className="text-xs" />
-                  </button>
-                </div>
+        {/* Right Column: Sidebar Panels */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Growth Matrix */}
+          <div className="bg-[#111c2e] border border-[#334155] rounded-xl p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-white tracking-wide">Growth Matrix</h3>
+              <span className="text-teal-400 text-sm">📈</span>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <span className="text-3xl font-black text-teal-400 tracking-tight leading-none">+12.4%</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mt-1">Daily Engagement</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-300">
+                <span>Highest activity recorded at 18:00 PM.</span>
+              </div>
+              <div className="w-full bg-[#0f172a] h-2 rounded-full overflow-hidden border border-[#334155]/60">
+                <div className="bg-gradient-to-r from-teal-400 to-indigo-500 h-full w-[70%]" />
               </div>
             </div>
-          ))}
+          </div>
+
+          {/* Top Contributors */}
+          <div className="bg-[#111c2e] border border-[#334155] rounded-xl p-5 shadow-xl">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-teal-400">🏆</span>
+              <h3 className="text-base font-bold text-white tracking-wide">Top Contributors</h3>
+            </div>
+            <div className="space-y-3">
+              {/* Jason Miller */}
+              <div className="flex items-center justify-between group cursor-pointer hover:bg-[#0f172a]/40 p-2 rounded-lg transition-all duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <img 
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop" 
+                      className="w-9 h-9 rounded-full object-cover border border-[#334155]" 
+                      alt="Jason Miller" 
+                    />
+                    <span className="absolute -top-1 -right-1 bg-teal-400 text-slate-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#111c2e]">1</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">Jason "Tank" Miller</p>
+                    <p className="text-[10px] text-slate-400">42 posts • 8.2k likes</p>
+                  </div>
+                </div>
+                <FaChevronRight className="text-slate-500 text-[10px] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              {/* Elena Rodriguez */}
+              <div className="flex items-center justify-between group cursor-pointer hover:bg-[#0f172a]/40 p-2 rounded-lg transition-all duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <img 
+                      src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop" 
+                      className="w-9 h-9 rounded-full object-cover border border-[#334155]" 
+                      alt="Elena Rodriguez" 
+                    />
+                    <span className="absolute -top-1 -right-1 bg-indigo-400 text-slate-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#111c2e]">2</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">Elena Rodriguez</p>
+                    <p className="text-[10px] text-slate-400">38 posts • 6.5k likes</p>
+                  </div>
+                </div>
+                <FaChevronRight className="text-slate-500 text-[10px] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              {/* Mike Chen */}
+              <div className="flex items-center justify-between group cursor-pointer hover:bg-[#0f172a]/40 p-2 rounded-lg transition-all duration-200">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <img 
+                      src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=150&auto=format&fit=crop" 
+                      className="w-9 h-9 rounded-full object-cover border border-[#334155]" 
+                      alt="Mike Chen" 
+                    />
+                    <span className="absolute -top-1 -right-1 bg-purple-400 text-slate-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#111c2e]">3</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">Mike Chen</p>
+                    <p className="text-[10px] text-slate-400">25 posts • 4.1k likes</p>
+                  </div>
+                </div>
+                <FaChevronRight className="text-slate-500 text-[10px] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </div>
+            <button 
+              onClick={() => alert("Leaderboards are updated dynamically based on weekly activity.")}
+              className="w-full mt-4 bg-transparent border border-[#334155] hover:bg-[#1e293b]/40 text-slate-300 hover:text-white text-[10px] font-bold py-2 rounded-lg transition-all tracking-widest uppercase cursor-pointer"
+            >
+              View Full Leaderboard
+            </button>
+          </div>
+
+          {/* Trending Now */}
+          <div className="bg-[#111c2e] border border-[#334155] rounded-xl p-5 shadow-xl">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-teal-400"><FaHashtag size={14} /></span>
+              <h3 className="text-base font-bold text-white tracking-wide">Trending Now</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {['#FitAdminPro', '#DeadliftDay', '#MorningMobility', '#MealPrep', '#Hypertrophy', '#YogaFlow'].map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => setHashtagFilter(hashtagFilter === tag ? null : tag)}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                    hashtagFilter === tag 
+                      ? 'bg-teal-400 text-slate-950 border-teal-400 font-bold' 
+                      : 'bg-[#0f172a] text-slate-300 border-[#334155] hover:border-slate-500'
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Admin Shortcuts */}
+          <div className="bg-[#111c2e] border border-[#334155] rounded-xl p-5 shadow-xl">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Admin Shortcuts</h3>
+            <div className="space-y-3 text-sm">
+              <button
+                onClick={() => {
+                  setTypeFilter(typeFilter === 'FLAGGED' ? 'ALL' : 'FLAGGED');
+                  setHashtagFilter(null);
+                }}
+                className={`w-full flex items-center justify-between p-2.5 rounded-lg transition-all cursor-pointer border ${
+                  typeFilter === 'FLAGGED' 
+                    ? 'bg-rose-500/10 border-rose-500/40 text-rose-200' 
+                    : 'text-slate-300 border-transparent hover:bg-[#0f172a]/50 hover:text-white'
+                }`}
+              >
+                <span className="flex items-center gap-2">🚩 Review Flagged Posts</span>
+                <span className="bg-rose-500 text-white text-[11px] font-black px-2 py-0.5 rounded-full leading-none">
+                  {baseFlaggedCount + flaggedPostIds.length}
+                </span>
+              </button>
+              
+              <button
+                onClick={() => setActiveModal('announcements')}
+                className="w-full flex items-center p-2.5 rounded-lg text-slate-300 hover:bg-[#0f172a]/50 hover:text-white transition-all text-left cursor-pointer border border-transparent"
+              >
+                <span>📌 Pinned Announcements</span>
+              </button>
+
+              <button
+                onClick={() => setActiveModal('guidelines')}
+                className="w-full flex items-center p-2.5 rounded-lg text-slate-300 hover:bg-[#0f172a]/50 hover:text-white transition-all text-left cursor-pointer border border-transparent"
+              >
+                <span>🛡️ Community Guidelines</span>
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
+
+      {/* Floating Action Button (FAB) for Announcement creation */}
+      <button
+        onClick={() => {
+          setShowBroadcastCreator(prev => !prev);
+          if(!showBroadcastCreator) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-[#5d5fef] to-teal-400 hover:from-teal-400 hover:to-[#5d5fef] text-white hover:scale-105 active:scale-95 transition-all rounded-full flex items-center justify-center shadow-xl shadow-indigo-500/35 cursor-pointer z-50 group"
+        aria-label="Create Announcement"
+      >
+        {showBroadcastCreator ? (
+          <FaTimes className="text-xl" />
+        ) : (
+          <FaPlus className="text-xl group-hover:rotate-90 transition-transform duration-300" />
+        )}
+      </button>
+
+      {/* MODALS */}
+
+      {/* Guidelines Modal */}
+      {activeModal === 'guidelines' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#111c2e] border border-[#334155] rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+            <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer">
+              <FaTimes size={18} />
+            </button>
+            <h3 className="text-xl font-bold text-teal-400 mb-4 flex items-center gap-2">
+              <FaShieldAlt /> Community Guidelines
+            </h3>
+            <div className="space-y-4 text-slate-300 text-sm overflow-y-auto max-h-[60vh] pr-2">
+              <div>
+                <p className="font-bold text-white">1. Respect & Encouragement</p>
+                <p className="pl-4 mt-0.5 text-slate-400">Treat all community members with respect. Encourage others in their fitness journeys and celebrate their PR achievements!</p>
+              </div>
+              <div>
+                <p className="font-bold text-white">2. No Spam or Business Promotion</p>
+                <p className="pl-4 mt-0.5 text-slate-400">Self-promotion, external links to services, or advertisements will be automatically flagged and deleted.</p>
+              </div>
+              <div>
+                <p className="font-bold text-white">3. Professional Advice Only</p>
+                <p className="pl-4 mt-0.5 text-slate-400">Do not prescribe medical advise, diets, or complex workout revisions. Always refer to certified staff.</p>
+              </div>
+              <div>
+                <p className="font-bold text-white">4. Keep it Fitness-focused</p>
+                <p className="pl-4 mt-0.5 text-slate-400">Ensure posts are relevant to workouts, wellness, hypertrophy, yoga, and nutrition tips within Victory Fitness.</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => setActiveModal(null)} className="bg-teal-400 hover:bg-teal-300 text-slate-900 font-bold px-5 py-2.5 rounded-lg transition-colors cursor-pointer">
+                I Understand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pinned Announcements Modal */}
+      {activeModal === 'announcements' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#111c2e] border border-[#334155] rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+            <button onClick={() => setActiveModal(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer">
+              <FaTimes size={18} />
+            </button>
+            <h3 className="text-xl font-bold text-teal-400 mb-4 flex items-center gap-2">
+              <BiBroadcast /> Pinned Announcements
+            </h3>
+            <div className="space-y-4 text-slate-300 text-sm overflow-y-auto max-h-[60vh] pr-2">
+              <div className="border-b border-[#334155]/60 pb-3">
+                <p className="font-bold text-white flex items-center gap-2">
+                  📢 Summer Fitness Challenge starts next Monday!
+                </p>
+                <p className="text-slate-400 text-xs mt-1">Pinned by Admin • July 10, 2026</p>
+                <p className="mt-2 pl-4 text-slate-300">Prepare for the 30-day Hypertrophy streak. Sign up under the Challenges tab in your app.</p>
+              </div>
+              <div>
+                <p className="font-bold text-white flex items-center gap-2">
+                  ⚙️ Scheduled Server Maintenance
+                </p>
+                <p className="text-slate-400 text-xs mt-1">Pinned by Admin • July 05, 2026</p>
+                <p className="mt-2 pl-4 text-slate-300">The app will undergo updates on Saturday at 2:00 AM EST for 1 hour. Active workouts will save offline.</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => setActiveModal(null)} className="bg-teal-400 hover:bg-teal-300 text-slate-900 font-bold px-5 py-2.5 rounded-lg transition-colors cursor-pointer">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
