@@ -232,11 +232,12 @@ const Community = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await adminApiRequest('/admin/community/posts');
+      const response = await adminApiRequest('/admin/community/feed');
       const apiPosts = Array.isArray(response?.posts) ? response.posts : [];
       
       // Combine API posts with the seed posts
       setPosts([...apiPosts, ...DEMO_SEED_POSTS]);
+      setFlaggedPostIds(apiPosts.filter((post) => post.flagged).map((post) => post.id));
     } catch (loadError) {
       setError(loadError.message || 'Failed to load community posts');
       setPosts(DEMO_SEED_POSTS);
@@ -404,7 +405,7 @@ const Community = () => {
         setSuccess('Community post updated');
       } else {
         // Create new post
-        const res = await adminApiRequest('/admin/community/posts', {
+        const res = await adminApiRequest('/admin/community/broadcast', {
           method: 'POST',
           body: {
             content,
@@ -505,8 +506,19 @@ const Community = () => {
     }
   };
 
-  const handleToggleFlag = (postId) => {
+  const handleToggleFlag = async (postId) => {
     const isFlagged = flaggedPostIds.includes(postId);
+    if (!String(postId).startsWith('demo-')) {
+      try {
+        await adminApiRequest(`/admin/community/posts/${postId}`, {
+          method: 'PATCH',
+          body: { flagged: !isFlagged, flag_reason: !isFlagged ? 'Admin review' : '' },
+        });
+      } catch (flagError) {
+        setError(flagError.message || 'Failed to update post flag');
+        return;
+      }
+    }
     if (isFlagged) {
       setFlaggedPostIds(prev => prev.filter(id => id !== postId));
       setSuccess('Post unflagged');
