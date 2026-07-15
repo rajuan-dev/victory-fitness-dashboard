@@ -221,7 +221,10 @@ export const adminApiRequest = async (path, options = {}) => {
 
   let response = await makeRequest();
   if (response.status === 401) {
-    const refreshed = await ensureAdminSession();
+    // A token can be rejected by the backend even while its local exp claim is
+    // still valid (for example after an auth-session version change). Force a
+    // server refresh instead of trusting the local token check.
+    const refreshed = await refreshAdminSession();
     if (!refreshed) {
       clearUserInfo();
       throw new Error("Session expired");
