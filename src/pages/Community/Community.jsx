@@ -21,7 +21,7 @@ import {
 } from 'react-icons/fa';
 import { BiBroadcast } from 'react-icons/bi';
 import { FiRefreshCw } from 'react-icons/fi';
-import { IoSendOutline } from 'react-icons/io5';
+import { IoMegaphoneOutline, IoSendOutline } from 'react-icons/io5';
 import { adminApiRequest } from '../../../services/auth.service';
 import { uploadAdminCommunityVideo } from '../../../services/admin-workouts.service';
 
