@@ -39,71 +39,6 @@ const EMPTY_FORM = {
   postType: 'text',
 };
 
-const DEMO_SEED_POSTS = [
-  {
-    id: 'demo-post-1',
-    author_id: 'author-1',
-    author_name: 'Marcus Thorne',
-    author_role: 'GOLD',
-    author_profile_image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=150&auto=format&fit=crop',
-    author_handle: '@m_thorne_fit',
-    content: 'Hit a new PR on deadlifts today! 455lbs for a triple. The morning stack of oats and the new pre-workout really made the difference. Shoutout to Coach Alex for the form corrections last week. #DeadliftDay #Gainz #FitAdminPro',
-    image_url: 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=800&auto=format&fit=crop',
-    like_count: 124,
-    comment_count: 18,
-    share_count: 5,
-    viewer_has_liked: false,
-    can_delete: false,
-    audience: 'GOLD',
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    comments: [
-      {
-        id: 'demo-comment-1-1',
-        author_name: 'Coach Alex',
-        author_profile_image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop',
-        content: 'Solid form Marcus! Keep pushing hard.',
-        created_at: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString()
-      }
-    ]
-  },
-  {
-    id: 'demo-post-2',
-    author_id: 'author-2',
-    author_name: 'Sarah Jenkins',
-    author_role: 'SILVER',
-    author_profile_image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=150&auto=format&fit=crop',
-    author_handle: '@s_jenkins_yoga',
-    content: '"The only bad workout is the one that didn\'t happen." Really feeling that today after pushing through a 6 AM mobility session when I just wanted to hit snooze. Consistency > Intensity.',
-    like_count: 82,
-    comment_count: 12,
-    share_count: 0,
-    viewer_has_liked: false,
-    can_delete: false,
-    audience: 'SILVER',
-    created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    comments: []
-  },
-  {
-    id: 'demo-post-3',
-    author_id: 'author-3',
-    author_name: 'Alex River',
-    author_role: 'GOLD',
-    author_profile_image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=150&auto=format&fit=crop',
-    author_handle: '@alex_river',
-    author_member_no: '#842',
-    content: 'Finally hit my PR on deadlifts today! This studio has the best energy early in the morning. Thanks for the tips @CoachSarah!',
-    image_url: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop',
-    like_count: 45,
-    comment_count: 5,
-    share_count: 2,
-    viewer_has_liked: false,
-    can_delete: false,
-    audience: 'GOLD',
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    comments: []
-  }
-];
-
 const formatPostDate = (value) => {
   if (!value) {
     return '';
@@ -242,8 +177,7 @@ const Community = () => {
       ]);
       const apiPosts = Array.isArray(response?.posts) ? response.posts : [];
       
-      // Combine API posts with the seed posts
-      setPosts([...apiPosts, ...DEMO_SEED_POSTS]);
+      setPosts(apiPosts);
       setFlaggedPostIds(apiPosts.filter((post) => post.flagged).map((post) => post.id));
       setTopContributors(Array.isArray(contributorsResponse?.contributors) ? contributorsResponse.contributors : []);
       setTrendingHashtags(Array.isArray(trendingResponse?.hashtags) ? trendingResponse.hashtags : []);
@@ -251,7 +185,7 @@ const Community = () => {
       setBaseFlaggedCount(Number(flaggedShortcut?.count || 0));
     } catch (loadError) {
       setError(loadError.message || 'Failed to load community posts');
-      setPosts(DEMO_SEED_POSTS);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -1237,7 +1171,7 @@ const Community = () => {
                   <FaChevronRight className="text-slate-500 text-[10px]" />
                 </div>
               ))}
-              {topContributors.length === 0 && (
+              {false && topContributors.length === 0 && (
               <>
               <div className="flex items-center justify-between group cursor-pointer hover:bg-[#0f172a]/40 p-2 rounded-lg transition-all duration-200">
                 <div className="flex items-center gap-3">
@@ -1310,7 +1244,7 @@ const Community = () => {
               <h3 className="text-base font-bold text-white tracking-wide">Trending Now</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {(trendingHashtags.length ? trendingHashtags.map(({ tag }) => tag) : ['#FitAdminPro', '#DeadliftDay', '#MorningMobility', '#MealPrep', '#Hypertrophy', '#YogaFlow']).map(tag => (
+              {trendingHashtags.map(({ tag }) => (
                 <button
                   key={tag}
                   onClick={() => setHashtagFilter(hashtagFilter === tag ? null : tag)}
@@ -1323,6 +1257,7 @@ const Community = () => {
                   {tag}
                 </button>
               ))}
+              {trendingHashtags.length === 0 && <p className="w-full text-xs text-slate-500">No trending hashtags yet.</p>}
             </div>
           </div>
 
