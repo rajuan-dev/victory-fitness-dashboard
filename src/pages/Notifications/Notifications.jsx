@@ -111,7 +111,7 @@ export default function Notifications() {
       const response = await sendTestPushNotification(testEmail.trim());
       setTestResult({
         type: "success",
-        text: `Test sent. Registered devices: ${response?.registeredDevices ?? 0}.`,
+        text: `Notification ${response?.status || "processed"}. Registered devices: ${response?.registeredDevices ?? 0}.`,
       });
     } catch (err) {
       setTestResult({ type: "error", text: err.message || "Could not send test notification." });

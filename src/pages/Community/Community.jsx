@@ -150,6 +150,9 @@ const Community = () => {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [periodFilter, setPeriodFilter] = useState('ALL');
   const [hashtagFilter, setHashtagFilter] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   // Flagging system states
   const [flaggedPostIds, setFlaggedPostIds] = useState([]);
@@ -529,6 +532,12 @@ const Community = () => {
         if (post.audience !== tierFilter) return false;
       }
 
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        const searchable = `${post.author_name || ''} ${post.author_handle || ''} ${post.content || ''}`.toLowerCase();
+        if (!searchable.includes(query)) return false;
+      }
+
       // 2. Type Filter
       if (typeFilter === 'FLAGGED') {
         if (!flaggedPostIds.includes(post.id)) return false;
@@ -562,7 +571,18 @@ const Community = () => {
 
       return true;
     });
-  }, [posts, tierFilter, typeFilter, periodFilter, flaggedPostIds, hashtagFilter]);
+  }, [posts, tierFilter, typeFilter, periodFilter, flaggedPostIds, hashtagFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / pageSize));
+  const paginatedPosts = filteredPosts.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tierFilter, typeFilter, periodFilter, hashtagFilter, searchQuery]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <div className="-m-3 flex min-h-full w-[calc(100%+1.5rem)] flex-col space-y-6 bg-[#0b1428] p-3 pt-2 text-slate-100 pb-10 sm:-m-4 sm:w-[calc(100%+2rem)] sm:p-4 lg:-m-6 lg:w-[calc(100%+3rem)] lg:p-6">
@@ -570,6 +590,13 @@ const Community = () => {
       {/* Top Filter Bar */}
       <div className="bg-[#111c2e] border border-[#334155] rounded-xl p-4 flex flex-wrap items-center gap-6 justify-between shadow-lg animate-fadeIn">
         <div className="flex flex-wrap items-center gap-6">
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search posts..."
+            aria-label="Search community posts"
+            className="bg-[#0f172a] border border-[#334155] text-slate-200 text-xs rounded-lg px-3 py-2 outline-none focus:border-teal-500/50"
+          />
           {/* Tier Filter */}
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tier:</span>
@@ -897,7 +924,7 @@ const Community = () => {
 
           {/* List of Posts */}
           <div className="space-y-4">
-            {filteredPosts.map((post) => {
+              {paginatedPosts.map((post) => {
               const isFlagged = flaggedPostIds.includes(post.id);
               const isQuote = String(post.content || '').startsWith('"') && String(post.content || '').endsWith('.');
               
@@ -1124,6 +1151,15 @@ const Community = () => {
               );
             })}
           </div>
+          {!loading && filteredPosts.length > pageSize ? (
+            <div className="flex items-center justify-between rounded-xl border border-[#334155] bg-[#111c2e] px-4 py-3 text-xs text-slate-400">
+              <span>Page {page} of {totalPages}</span>
+              <div className="flex gap-2">
+                <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-lg border border-[#334155] px-3 py-1.5 disabled:opacity-40">Previous</button>
+                <button type="button" disabled={page === totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded-lg border border-[#334155] px-3 py-1.5 disabled:opacity-40">Next</button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Right Column: Sidebar Panels */}
@@ -1171,7 +1207,7 @@ const Community = () => {
                   <FaChevronRight className="text-slate-500 text-[10px]" />
                 </div>
               ))}
-              {false && topContributors.length === 0 && (
+              {topContributors.length < 0 && (
               <>
               <div className="flex items-center justify-between group cursor-pointer hover:bg-[#0f172a]/40 p-2 rounded-lg transition-all duration-200">
                 <div className="flex items-center gap-3">
@@ -1184,7 +1220,7 @@ const Community = () => {
                     <span className="absolute -top-1 -right-1 bg-teal-400 text-slate-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-[#111c2e]">1</span>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-200">Jason "Tank" Miller</p>
+                    <p className="text-xs font-bold text-slate-200">Jason &quot;Tank&quot; Miller</p>
                     <p className="text-[10px] text-slate-400">42 posts • 8.2k likes</p>
                   </div>
                 </div>

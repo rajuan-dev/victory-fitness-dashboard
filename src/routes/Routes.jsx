@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, useRouteError } from "react-router-dom";
 
 const SignInPage = lazy(() => import("../pages/auth/SignInPage"));
 const ForgetPassword = lazy(() => import("../pages/auth/ForgetPassword"));
@@ -45,6 +45,24 @@ function RouteFallback() {
   );
 }
 
+function RouteError() {
+  const error = useRouteError();
+  const message = error?.status === 401
+    ? "Your session has expired. Please sign in again."
+    : "This page could not be loaded right now.";
+
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center p-6">
+      <div className="max-w-md rounded-2xl border border-rose-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-xl text-rose-500">!</div>
+        <h1 className="text-xl font-bold text-slate-900">Something went wrong</h1>
+        <p className="mt-2 text-sm text-slate-500">{message}</p>
+        <button type="button" onClick={() => window.location.reload()} className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Try again</button>
+      </div>
+    </div>
+  );
+}
+
 const withSuspense = (Component) => (
   <Suspense fallback={<RouteFallback />}>
     <Component />
@@ -72,6 +90,7 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: withSuspense(MainLayout),
+    errorElement: <RouteError />,
     children: [
       {
         path: "/",
