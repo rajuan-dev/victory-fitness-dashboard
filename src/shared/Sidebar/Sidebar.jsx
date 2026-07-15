@@ -37,7 +37,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         w-[100%] sm:w-[85%] md:w-72 xl:w-80
         ${isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full shadow-none "}
         fixed top-0 left-0
-        md:static md:translate-x-0 md:shadow-xl
+        md:sticky md:top-0 md:translate-x-0 md:shadow-xl md:flex-shrink-0
         border-r border-slate-200/60
         [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-blue-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-blue-300
       `}
