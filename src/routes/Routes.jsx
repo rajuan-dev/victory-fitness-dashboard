@@ -28,6 +28,7 @@ const SupportInbox = lazy(() => import("../pages/SupportInbox/SupportInbox"));
 const Homepage = lazy(() => import("../pages/Homepage/Homepage"));
 const TrialAnalytics = lazy(() => import("../pages/TrialAnalytics/TrialAnalytics"));
 const AuditLogs = lazy(() => import("../pages/AuditLogs/AuditLogs"));
+const AnalyticsPage = lazy(() => import("../pages/Analytics/AnalyticsPage"));
 
 function RouteFallback() {
   return (
@@ -144,6 +145,10 @@ const router = createBrowserRouter([
       {
         path: "/audit-logs",
         element: withSuspense(AuditLogs),
+      },
+      {
+        path: "/analytics",
+        element: withSuspense(AnalyticsPage),
       },
 
       // settings

@@ -4,7 +4,7 @@ import { IoSearch, IoChevronBack } from "react-icons/io5";
 import { useNavigate } from "react-router-dom";
 import { FaRegEye } from "react-icons/fa";
 import { AiOutlineDelete } from "react-icons/ai";
-import TotalUsers from "../User Management/TotalUsers";
+import TotalUsers from "../../components/dashboard/charts/TotalUsersChart";
 import { deleteAdminUser, getAdminUser, getTrialCohorts, getTrialDropouts, getUserManagementOverview } from "../../../services/admin-users.service";
 import DetailModal from "../../components/dashboard/DetailModal";
 import {

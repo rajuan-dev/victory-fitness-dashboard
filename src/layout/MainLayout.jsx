@@ -3,6 +3,7 @@ import Sidebar from "../shared/Sidebar/Sidebar";
 import MainHeader from "../shared/MainHeader/MainHeader";
 import { Outlet, useLocation } from "react-router-dom";
 import RequireAdminAuth from "../components/RequireAdminAuth";
+import { AnalyticsFilterProvider } from "../context/AnalyticsFilterContext";
 
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -40,7 +41,7 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-gradient-to-br from-gray-50 to-slate-100">
+    <div className="relative flex h-screen overflow-hidden bg-gradient-to-br from-surface-50 via-brand-50/30 to-accent-50/30">
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
@@ -60,9 +61,11 @@ const MainLayout = () => {
           <MainHeader toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
         </div>
         <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 lg:p-6">
-          <div className="bg-white rounded-lg shadow-sm min-h-[calc(100vh-6rem)] sm:min-h-[calc(100vh-2rem)] p-3 sm:p-4 lg:p-6">
+          <div className="page-card min-h-[calc(100vh-6rem)] sm:min-h-[calc(100vh-2rem)] p-3 sm:p-4 lg:p-6">
             <RequireAdminAuth>
-              <Outlet />
+              <AnalyticsFilterProvider>
+                <Outlet />
+              </AnalyticsFilterProvider>
             </RequireAdminAuth>
           </div>
         </main>

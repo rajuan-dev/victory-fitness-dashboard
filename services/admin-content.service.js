@@ -231,9 +231,19 @@ export const getAdminTrialConversion = async ({ signal } = {}) => {
   }
 };
 
-export const listAdminAuditLogs = async ({ limit = 100, signal } = {}) => {
+export const listAdminAuditLogs = async ({
+  limit = 100,
+  skip = 0,
+  action = "",
+  resource = "",
+  adminEmail = "",
+  signal,
+} = {}) => {
   try {
-    return await adminApiRequest(`/admin/audit-logs?limit=${encodeURIComponent(limit)}`, { signal });
+    return await adminApiRequest(
+      `/admin/audit-logs${buildQueryString({ limit, skip, action, resource, adminEmail })}`,
+      { signal },
+    );
   } catch (error) {
     throw new Error(wrapContentError(error, "Failed to load audit logs"));
   }
