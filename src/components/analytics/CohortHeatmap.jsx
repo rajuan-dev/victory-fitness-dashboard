@@ -3,6 +3,7 @@
  * Bands: green > 50, amber 25-50, red < 25 (per the brief).
  */
 const bandClass = (pct) => {
+  if (pct == null) return "bg-surface-50 text-surface-400";
   if (pct >= 50) return "bg-accent-500/90 text-white";
   if (pct >= 25) return "bg-warm-400/90 text-white";
   if (pct > 0) return "bg-danger-500/85 text-white";
@@ -54,16 +55,16 @@ export default function CohortHeatmap({ cohorts = [], loading = false }) {
                 {row.newUsers}
               </td>
               <td className={`px-2 py-2 text-center font-semibold tabular-nums rounded ${bandClass(row.day7Pct)}`}>
-                {row.day7Pct.toFixed(1)}%
+                {row.day7Pct == null ? "—" : `${row.day7Pct.toFixed(1)}%`}
               </td>
               <td className={`px-2 py-2 text-center font-semibold tabular-nums rounded ${bandClass(row.day14Pct)}`}>
-                {row.day14Pct.toFixed(1)}%
+                {row.day14Pct == null ? "—" : `${row.day14Pct.toFixed(1)}%`}
               </td>
               <td className={`px-2 py-2 text-center font-semibold tabular-nums rounded ${bandClass(row.day30Pct)}`}>
-                {row.day30Pct.toFixed(1)}%
+                {row.day30Pct == null ? "—" : `${row.day30Pct.toFixed(1)}%`}
               </td>
               <td className={`px-2 py-2 text-center font-semibold tabular-nums rounded ${bandClass(row.paidDay30Pct)}`}>
-                {row.paidDay30Pct.toFixed(1)}%
+                {row.paidDay30Pct == null ? "—" : `${row.paidDay30Pct.toFixed(1)}%`}
               </td>
             </tr>
           ))}

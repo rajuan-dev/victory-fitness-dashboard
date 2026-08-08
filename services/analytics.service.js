@@ -25,14 +25,6 @@ const fetchAnalytics = async (path, params, signal, fallback) => {
   }
 };
 
-export const fetchRange = ({ preset, market, from, to, signal } = {}) =>
-  fetchAnalytics(
-    "range",
-    { preset, market, from, to },
-    signal,
-    "Failed to load range",
-  );
-
 export const fetchUserStats = ({ preset, market, from, to, signal } = {}) =>
   fetchAnalytics(
     "user-stats",
@@ -65,20 +57,20 @@ export const fetchNutritionStats = ({ preset, market, from, to, signal } = {}) =
     "Failed to load nutrition stats",
   );
 
-export const fetchRevenue = ({ preset, market, from, to, signal } = {}) =>
+export const fetchRevenue = ({ preset, market, from, to, granularity, signal } = {}) =>
   fetchAnalytics(
     "revenue",
-    { preset, market, from, to },
+    { preset, market, from, to, granularity },
     signal,
     "Failed to load revenue",
   );
 
-export const fetchCommunitySharing = ({ preset, market, from, to, signal } = {}) =>
+export const fetchAccountabilityStats = ({ preset, market, from, to, signal } = {}) =>
   fetchAnalytics(
-    "community-sharing",
+    "accountability-stats",
     { preset, market, from, to },
     signal,
-    "Failed to load community sharing",
+    "Failed to load accountability stats",
   );
 
 export const fetchHabitAdoption = ({ preset, market, from, to, signal } = {}) =>
@@ -116,8 +108,18 @@ export const fetchWhatsappTracker = ({ preset, market, from, to, signal } = {}) 
 export const fetchDailyWins = ({ signal } = {}) =>
   fetchAnalytics("daily-wins", {}, signal, "Failed to load daily wins");
 
-export const fetchRetentionCohort = ({ signal } = {}) =>
-  fetchAnalytics("retention-cohort", {}, signal, "Failed to load retention cohort");
+export const fetchRetentionCohort = ({ preset, market, from, to, signal } = {}) =>
+  fetchAnalytics(
+    "retention-cohort",
+    { preset, market, from, to },
+    signal,
+    "Failed to load retention cohort",
+  );
 
-export const fetchMarketBreakdown = ({ signal } = {}) =>
-  fetchAnalytics("market-breakdown", {}, signal, "Failed to load market breakdown");
+export const fetchMarketBreakdown = ({ preset, from, to, signal } = {}) =>
+  fetchAnalytics(
+    "market-breakdown",
+    { preset, from, to },
+    signal,
+    "Failed to load market breakdown",
+  );

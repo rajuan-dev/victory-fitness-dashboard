@@ -1,7 +1,7 @@
 import { ConfigProvider, Modal, Table, message } from "antd";
 import { useEffect, useState } from "react";
 import { IoSearch, IoChevronBack } from "react-icons/io5";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { FaRegEye } from "react-icons/fa";
 import { AiOutlineDelete } from "react-icons/ai";
 import TotalUsers from "../../components/dashboard/charts/TotalUsersChart";
@@ -147,6 +147,8 @@ const getUserDetailSections = (user) => {
 
 function UserDetails() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedUserId = searchParams.get("userId");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -247,9 +249,39 @@ function UserDetails() {
     }
   };
 
+  useEffect(() => {
+    if (!requestedUserId) return;
+    let cancelled = false;
+    setSelectedUser({ id: requestedUserId, fullName: "Loading user..." });
+    setIsViewModalOpen(true);
+    setIsViewLoading(true);
+    getAdminUser(requestedUserId)
+      .then((user) => {
+        if (!cancelled) setSelectedUser(user);
+      })
+      .catch((requestError) => {
+        if (!cancelled) {
+          message.error(requestError instanceof Error ? requestError.message : "Failed to load user details");
+          setIsViewModalOpen(false);
+          setSelectedUser(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsViewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requestedUserId]);
+
   const handleViewCancel = () => {
     setIsViewModalOpen(false);
     setSelectedUser(null);
+    if (requestedUserId) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("userId");
+      setSearchParams(next, { replace: true });
+    }
   };
 
   const openDelete = (row) => {

@@ -56,9 +56,8 @@ export default function WinsFeed() {
   }, []);
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border border-surface-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-surface-900">Daily Wins</h3>
+    <div className="flex h-full min-h-48 flex-col">
+      <div className="mb-3 flex justify-end">
         <span className="text-[10px] uppercase tracking-wider text-surface-400">
           Live · 60s
         </span>

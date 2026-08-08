@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
-import { FaDumbbell, FaTrophy, FaUserPlus, FaUsers, FaWhatsapp } from "react-icons/fa";
+import { Link } from "react-router-dom";
+import { FaDumbbell, FaTrophy, FaUserPlus, FaUsers } from "react-icons/fa";
 import {
   MdCardMembership,
   MdRestaurantMenu,
-  MdOutlineGroups,
   MdPsychology,
   MdWhatshot,
   MdLeaderboard,
 } from "react-icons/md";
-import { IoMdAnalytics } from "react-icons/io";
 import AnalyticsFilterBar from "../../components/shared/AnalyticsFilterBar";
 import StatCard from "../../components/shared/StatCard";
 import MiniBarChart from "../../components/shared/MiniBarChart";
@@ -19,8 +18,8 @@ import MarketPanel from "../../components/analytics/MarketPanel";
 import WinsFeed from "../../components/analytics/WinsFeed";
 import { useAnalyticsFilter } from "../../context/AnalyticsFilterContext";
 import {
+  fetchAccountabilityStats,
   fetchChallengeStats,
-  fetchCommunitySharing,
   fetchHabitAdoption,
   fetchMarketBreakdown,
   fetchNutritionStats,
@@ -36,7 +35,7 @@ import {
 /**
  * Custom hook that re-fetches whenever the filter changes.
  */
-function useAnalyticsQuery(fetcher) {
+function useAnalyticsQuery(fetcher, refreshKey = "") {
   const filter = useAnalyticsFilter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +64,7 @@ function useAnalyticsQuery(fetcher) {
       ac.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter.preset, filter.market, filter.from, filter.to]);
+  }, [filter.preset, filter.market, filter.from, filter.to, refreshKey]);
 
   return { data, loading, error };
 }
@@ -87,32 +86,48 @@ function SectionCard({ title, subtitle, children, action }) {
   );
 }
 
-const eur = (v) =>
+const money = (v, currency = "EUR") =>
   typeof v === "number"
     ? new Intl.NumberFormat(undefined, {
         style: "currency",
-        currency: "EUR",
+        currency,
         maximumFractionDigits: 0,
       }).format(v)
     : "—";
 
 export default function AnalyticsPage() {
+  const [revenueGranularity, setRevenueGranularity] = useState("daily");
   const userStats = useAnalyticsQuery(fetchUserStats);
   const workoutStats = useAnalyticsQuery(fetchWorkoutStats);
   const challengeStats = useAnalyticsQuery(fetchChallengeStats);
   const nutritionStats = useAnalyticsQuery(fetchNutritionStats);
-  const revenueStats = useAnalyticsQuery(fetchRevenue);
-  const sharing = useAnalyticsQuery(fetchCommunitySharing);
+  const revenueStats = useAnalyticsQuery(
+    (params) => fetchRevenue({ ...params, granularity: revenueGranularity }),
+    revenueGranularity,
+  );
+  const accountability = useAnalyticsQuery(fetchAccountabilityStats);
   const habit = useAnalyticsQuery(fetchHabitAdoption);
   const funnel = useAnalyticsQuery(fetchTrialFunnel);
   const viral = useAnalyticsQuery(fetchViralCoefficient);
   const whatsapp = useAnalyticsQuery(fetchWhatsappTracker);
 
-  const cohort = useAnalyticsQuery(() => fetchRetentionCohort());
-  const marketBreakdown = useAnalyticsQuery(() => fetchMarketBreakdown());
+  const cohort = useAnalyticsQuery(fetchRetentionCohort);
+  const marketBreakdown = useAnalyticsQuery(fetchMarketBreakdown);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="intelligence-dashboard">
+      <header className="overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-950 via-brand-800 to-accent-800 px-5 py-6 text-white shadow-lg sm:px-7">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-accent-200">
+          Live intelligence layer
+        </p>
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">
+          Intelligence &amp; Marketing Dashboard
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm text-brand-100">
+          Product engagement, retention, revenue, and organic growth in one
+          decision view. Every section follows the filters below.
+        </p>
+      </header>
       <AnalyticsFilterBar />
 
       {/* =================== 18.9 Marketing widgets (always visible) =================== */}
@@ -124,6 +139,7 @@ export default function AnalyticsPage() {
               ? `Biggest drop-off: ${funnel.data.largestDropOff}`
               : "Drop-off between each step"
           }
+          action={<span id="trial-funnel" />}
         >
           <FunnelChart steps={funnel.data?.steps || []} />
         </SectionCard>
@@ -219,6 +235,7 @@ export default function AnalyticsPage() {
           <StatCard
             label="Total registered"
             value={userStats.data?.totalRegistered?.toLocaleString() ?? 0}
+            changePct={userStats.data?.totalRegisteredChangePct}
             tone="brand"
             icon={<FaUsers />}
             loading={userStats.loading}
@@ -284,12 +301,18 @@ export default function AnalyticsPage() {
             </h3>
             <ol className="space-y-1 text-sm">
               {(userStats.data?.top10Users || []).map((u) => (
-                <li key={u.userId} className="flex items-center gap-2">
-                  <span className="w-6 text-xs font-bold text-surface-400">#{u.rank}</span>
-                  <span className="flex-1 truncate font-mono text-xs text-surface-700">
-                    {u.userId.slice(0, 12)}
-                  </span>
-                  <span className="font-semibold tabular-nums">{u.points} pts</span>
+                <li key={u.userId}>
+                  <Link
+                    to={`/user-details?userId=${encodeURIComponent(u.userId)}`}
+                    className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-1 py-1.5 transition hover:bg-brand-50"
+                  >
+                    <span className="text-xs font-bold text-surface-400">#{u.rank}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-semibold text-surface-800">{u.name}</span>
+                      <span className="block text-[10px] text-surface-500">{u.tier || "None"} · {u.workouts || 0} workouts</span>
+                    </span>
+                    <span className="font-semibold tabular-nums">{u.points} pts</span>
+                  </Link>
                 </li>
               ))}
               {!userStats.data?.top10Users?.length && !userStats.loading && (
@@ -300,11 +323,12 @@ export default function AnalyticsPage() {
             </ol>
           </div>
         </div>
+
       </SectionCard>
 
       {/* =================== 18.3 Workout Statistics =================== */}
       <SectionCard title="Workout Statistics" subtitle="Engagement & completion quality">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <StatCard
             label="Completed"
             value={workoutStats.data?.totalCompleted?.toLocaleString() ?? 0}
@@ -324,14 +348,6 @@ export default function AnalyticsPage() {
             label="AI-generated workouts"
             value={workoutStats.data?.aiGeneratedWorkouts?.toLocaleString() ?? 0}
             tone="warm"
-            loading={workoutStats.loading}
-          />
-          <StatCard
-            label="WhatsApp shares"
-            value={workoutStats.data?.whatsappShares?.toLocaleString() ?? 0}
-            changePct={workoutStats.data?.whatsappSharesChangePct}
-            tone="accent"
-            icon={<FaWhatsapp />}
             loading={workoutStats.loading}
           />
         </div>
@@ -375,7 +391,7 @@ export default function AnalyticsPage() {
             tone="warm"
             sublabel={
               (challengeStats.data?.abTestResult || [])
-                .map((v) => `${v.variant.toUpperCase()}: ${v.total}`)
+                .map((v) => `${v.variant.toUpperCase()}: ${v.total ? ((v.acceptances / v.total) * 100).toFixed(1) : 0}%`)
                 .join(" · ") || "No variants yet"
             }
             loading={challengeStats.loading}
@@ -392,7 +408,7 @@ export default function AnalyticsPage() {
             </p>
             <p className="text-xs text-surface-600">
               {challengeStats.data.mostPopular.participants} participants ·{" "}
-              {challengeStats.data.mostPopular.completionRate.toFixed(1)}% completed
+              {challengeStats.data.mostPopular.completionRate?.toFixed(1) ?? "—"}% completed
             </p>
           </div>
         )}
@@ -441,30 +457,51 @@ export default function AnalyticsPage() {
       </SectionCard>
 
       {/* =================== 18.6 Revenue =================== */}
-      <SectionCard title="Revenue Statistics" subtitle="MRR, ARPU, and trend">
+      <SectionCard
+        title="Revenue Statistics"
+        subtitle="MRR, ARPU, and trend"
+        action={
+          <div className="inline-flex rounded-lg border border-surface-200 bg-surface-50 p-1">
+            {["daily", "weekly", "monthly"].map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setRevenueGranularity(option)}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold capitalize transition ${
+                  revenueGranularity === option
+                    ? "bg-white text-brand-700 shadow-sm"
+                    : "text-surface-500 hover:text-surface-800"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        }
+      >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard
             label="MRR (EUR)"
-            value={eur(revenueStats.data?.mrr?.eur)}
+            value={money(revenueStats.data?.mrr?.eur, "EUR")}
             tone="brand"
             icon={<MdCardMembership />}
             loading={revenueStats.loading}
           />
           <StatCard
             label="MRR (GHS)"
-            value={eur(revenueStats.data?.mrr?.ghs).replace("€", "₵")}
+            value={money(revenueStats.data?.mrr?.ghs, "GHS")}
             tone="warm"
             loading={revenueStats.loading}
           />
           <StatCard
             label="MRR (INR)"
-            value={eur(revenueStats.data?.mrr?.inr).replace("€", "₹")}
+            value={money(revenueStats.data?.mrr?.inr, "INR")}
             tone="accent"
             loading={revenueStats.loading}
           />
           <StatCard
             label="ARPU"
-            value={eur(revenueStats.data?.arpu)}
+            value={money(revenueStats.data?.arpu, "EUR")}
             tone="accent"
             loading={revenueStats.loading}
           />
@@ -495,33 +532,46 @@ export default function AnalyticsPage() {
             />
           </div>
         </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {[
+            { market: "GH", label: "Ghana revenue", currency: "GHS" },
+            { market: "DE", label: "Germany revenue", currency: "EUR" },
+            { market: "IN", label: "India revenue", currency: "INR" },
+          ].map((item) => {
+            const revenue = (revenueStats.data?.revenueByMarket || []).find(
+              (row) => row.market === item.market,
+            );
+            return (
+              <div
+                key={item.market}
+                className="rounded-xl border border-surface-200 bg-surface-50 p-3"
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-surface-500">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-lg font-bold tabular-nums text-surface-900">
+                  {money(revenue?.amount ?? 0, item.currency)}
+                </p>
+                <p className="text-[11px] text-surface-500">Selected period</p>
+              </div>
+            );
+          })}
+        </div>
       </SectionCard>
 
-      {/* =================== 18.7 Community & Sharing =================== */}
-      <SectionCard title="Community & Sharing" subtitle="Viral loop accountability">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <StatCard
-            label="WhatsApp shares"
-            value={sharing.data?.whatsappShareCount?.toLocaleString() ?? 0}
-            changePct={sharing.data?.whatsappShareChangePct}
-            tone="accent"
-            icon={<FaWhatsapp />}
-            loading={sharing.loading}
-          />
-          <StatCard
-            label="Viral coefficient"
-            value={sharing.data?.viralCoefficient?.toFixed(2) ?? 0}
-            colorBand={sharing.data?.viralCoefficientColor}
-            tone="brand"
-            icon={<MdOutlineGroups />}
-            loading={sharing.loading}
-          />
+      {/* =================== 18.7 Accountability Adoption =================== */}
+      <SectionCard
+        title="Accountability Adoption"
+        subtitle="New active accountability pairs"
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <StatCard
             label="New pairs"
-            value={sharing.data?.newAccountabilityPairs?.toLocaleString() ?? 0}
-            changePct={sharing.data?.newPairsChangePct}
+            value={accountability.data?.newAccountabilityPairs?.toLocaleString() ?? 0}
+            changePct={accountability.data?.newPairsChangePct}
             tone="warm"
-            loading={sharing.loading}
+            loading={accountability.loading}
           />
         </div>
       </SectionCard>
@@ -567,13 +617,13 @@ export default function AnalyticsPage() {
               <div>
                 <p className="text-xs text-surface-600">Habit users</p>
                 <p className="text-xl font-bold tabular-nums text-accent-700">
-                  {habit.data.retentionComparison.habitRetainedPct.toFixed(1)}%
+                  {habit.data.retentionComparison.habitRetainedPct?.toFixed(1) ?? "—"}%
                 </p>
               </div>
               <div>
                 <p className="text-xs text-surface-600">Non-habit users</p>
                 <p className="text-xl font-bold tabular-nums text-surface-700">
-                  {habit.data.retentionComparison.nonHabitRetainedPct.toFixed(1)}%
+                  {habit.data.retentionComparison.nonHabitRetainedPct?.toFixed(1) ?? "—"}%
                 </p>
               </div>
             </div>

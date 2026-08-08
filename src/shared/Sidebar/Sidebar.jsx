@@ -1,7 +1,7 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { RxDashboard } from "react-icons/rx";
 import { LuUsers } from "react-icons/lu";
-import { IoMdSettings, IoMdAnalytics } from "react-icons/io";
+import { IoMdSettings } from "react-icons/io";
 import { IoCloseSharp, IoLogOutOutline } from "react-icons/io5";
 import { MdCardMembership, MdOutlineGroups, MdQuiz } from "react-icons/md";
 import { FaDumbbell, FaTrophy, FaGraduationCap, FaUsers, FaFileAlt, FaHeadset } from "react-icons/fa";
@@ -27,13 +27,11 @@ const NAV_GROUPS = [
       { to: "/applications", label: "Applications", icon: FaFileAlt },
       { to: "/support-inbox", label: "Help & Support", icon: FaHeadset },
       { to: "/quotes", label: "Quotes", icon: MdFormatQuote },
-      { to: "/trial-analytics", label: "Trial Analytics", icon: MdAnalytics },
     ],
   },
   {
     label: "Insights",
     items: [
-      { to: "/analytics", label: "Intelligence & Marketing", icon: IoMdAnalytics },
       { to: "/audit-logs", label: "Audit Logs", icon: MdAnalytics },
     ],
   },
@@ -46,8 +44,8 @@ const NAV_GROUPS = [
   },
 ];
 
-function NavItem({ to, label, icon: Icon, exact, isActive, onClick }) {
-  const active = exact ? isActive(to) && window.location.pathname === to : isActive(to);
+function NavItem({ to, label, icon: Icon, exact, isActive, matchesPrefix, onClick }) {
+  const active = exact ? isActive(to) : matchesPrefix(to);
   return (
     <Link to={to} onClick={onClick} className="block">
       <li
@@ -73,6 +71,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
   const currentPath = location.pathname;
   const isActive = (path) => currentPath === path;
+  const matchesPrefix = (path) => path !== "/" && currentPath.startsWith(path);
   const navigate = useNavigate();
 
   const handleLinkClick = () => {
@@ -141,6 +140,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                 key={item.to}
                 {...item}
                 isActive={isActive}
+                matchesPrefix={matchesPrefix}
                 onClick={handleLinkClick}
               />
             ))}

@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { createBrowserRouter, useRouteError } from "react-router-dom";
+import { createBrowserRouter, Navigate, useRouteError } from "react-router-dom";
 
 const SignInPage = lazy(() => import("../pages/auth/SignInPage"));
 const ForgetPassword = lazy(() => import("../pages/auth/ForgetPassword"));
@@ -26,9 +26,7 @@ const AllSubscribers = lazy(() => import("../pages/Subscribers/AllSubscribers"))
 const Applications = lazy(() => import("../pages/Applications/Applications"));
 const SupportInbox = lazy(() => import("../pages/SupportInbox/SupportInbox"));
 const Homepage = lazy(() => import("../pages/Homepage/Homepage"));
-const TrialAnalytics = lazy(() => import("../pages/TrialAnalytics/TrialAnalytics"));
 const AuditLogs = lazy(() => import("../pages/AuditLogs/AuditLogs"));
-const AnalyticsPage = lazy(() => import("../pages/Analytics/AnalyticsPage"));
 
 function RouteFallback() {
   return (
@@ -140,7 +138,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/trial-analytics",
-        element: withSuspense(TrialAnalytics),
+        element: <Navigate to="/#trial-funnel" replace />,
       },
       {
         path: "/audit-logs",
@@ -148,7 +146,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/analytics",
-        element: withSuspense(AnalyticsPage),
+        element: <Navigate to="/" replace />,
       },
 
       // settings
