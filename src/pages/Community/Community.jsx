@@ -8,10 +8,8 @@ import {
   FaChevronRight, 
   FaHeart, 
   FaRegHeart, 
-  FaComment, 
-  FaRegComment, 
-  FaShare, 
-  FaTrophy, 
+  FaRegComment,
+  FaShare,
   FaHashtag, 
   FaShieldAlt, 
   FaPlus, 
@@ -1207,7 +1205,7 @@ const Community = () => {
                   <FaChevronRight className="text-slate-500 text-[10px]" />
                 </div>
               ))}
-              {topContributors.length < 0 && (
+              {topContributors.length === 0 && (
               <>
               <div className="flex items-center justify-between group cursor-pointer hover:bg-[#0f172a]/40 p-2 rounded-lg transition-all duration-200">
                 <div className="flex items-center gap-3">

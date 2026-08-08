@@ -1,15 +1,20 @@
-import React from 'react';
 import { FaArrowLeftLong } from 'react-icons/fa6';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 function PageHeading({ title }) {
+    const navigate = useNavigate();
+
     return (
-        <div className="flex !items-center  justify-between">
-            <Link to={-1}>
-                <h1 className="font-semibold text-xl flex items-center justify-start gap-2">
-                    <FaArrowLeftLong /> {title}
-                </h1>
-            </Link>
+        <div className="flex items-center justify-between">
+            <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center gap-2 text-left"
+                aria-label="Go back"
+            >
+                <FaArrowLeftLong />
+                <h1 className="font-semibold text-xl">{title}</h1>
+            </button>
         </div>
     );
 }

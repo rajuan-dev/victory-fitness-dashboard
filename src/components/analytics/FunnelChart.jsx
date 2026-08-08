@@ -92,7 +92,7 @@ export default function FunnelChart({ steps = [] }) {
               {s.label}
             </p>
             <p className="mt-1 text-base font-bold tabular-nums text-surface-900">
-              {s.count.toLocaleString()}
+              {s.count?.toLocaleString() ?? "—"}
             </p>
             {i > 0 && (
               <p
@@ -104,7 +104,7 @@ export default function FunnelChart({ steps = [] }) {
                     : "text-surface-500"
                 }`}
               >
-                ↓ {s.dropOffPct.toFixed(1)}%
+                ↓ {s.dropOffPct?.toFixed(1) ?? "—"}%
               </p>
             )}
           </div>

@@ -28,17 +28,17 @@ export default function Homepage() {
     finally { setSaving(false); }
   };
 
-  const updateActive = async (id, active) => {
+  const updateActive = useCallback(async (id, active) => {
     const next = quotes.map((item) => item.id === id ? { ...item, active } : item);
     setQuotes(next);
     try { await replaceAdminHomepageQuotes(next); } catch (error) { message.error(error.message || "Failed to update quote"); void load(); }
-  };
+  }, [quotes, load]);
 
   const quoteColumns = useMemo(() => [
     { title: "Quote", dataIndex: "text", key: "text", render: (value) => <span className="font-medium text-slate-700">{value}</span> },
     { title: "Author", dataIndex: "author", key: "author" },
     { title: "Homepage", dataIndex: "active", key: "active", width: 130, render: (active, item) => <Switch checked={active} onChange={(value) => updateActive(item.id, value)} /> },
-  ], [quotes]);
+  ], [updateActive]);
 
   return <div className="space-y-6">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold text-slate-800">Quotes</h1><p className="text-sm text-slate-500">Manage the quote rotation shown in the app.</p></div><Button icon={<FiRefreshCw />} onClick={() => void load()} loading={loading}>Refresh</Button></div>

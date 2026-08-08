@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Form, Input, InputNumber, Select, Upload, message, Popconfirm, Button, Spin } from 'antd';
-import { FiChevronDown, FiEdit, FiTrash2, FiPlus, FiImage } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiPlus, FiImage } from 'react-icons/fi';
 import { FaComments, FaFire, FaUsers, FaTrophy } from 'react-icons/fa';
 import { adminApiRequest } from '../../../services/auth.service';
 import { toBase64Payload } from "../../utils/imageUpload";

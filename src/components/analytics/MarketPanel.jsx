@@ -1,5 +1,3 @@
-import { Tooltip } from "antd";
-
 const MARKET_TONES = {
   Ghana: {
     bg: "from-warm-100 to-warm-50",
