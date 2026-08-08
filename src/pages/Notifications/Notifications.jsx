@@ -162,7 +162,7 @@ export default function Notifications() {
         theme={{
           components: {
             List: {
-              colorPrimary: "blue-600",
+              colorPrimary: "#2563eb",
             },
           },
         }}
@@ -219,7 +219,7 @@ export default function Notifications() {
                       <Button
                         size="small"
                         type="primary"
-                        style={{ background: "blue-600" }}
+                        style={{ background: "#2563eb" }}
                         onClick={() => markRead(item?.id)}
                       >
                         Mark read

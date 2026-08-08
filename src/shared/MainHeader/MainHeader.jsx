@@ -87,15 +87,15 @@ const MainHeader = ({ toggleSidebar }) => {
 
   return (
     <div className="relative w-full px-3 sm:px-4 lg:px-5">
-      <header className="shadow-sm rounded-lg border border-slate-200 overflow-hidden bg-white">
+      <header className="shadow-sm rounded-lg border border-surface-200 overflow-hidden bg-white">
         <div className="flex items-center px-3 sm:px-5 md:px-10 h-[60px] sm:h-[70px] lg:h-[80px]">
           {/* Left: Hamburger Menu */}
           <button
             onClick={toggleSidebar}
             aria-label="Toggle sidebar"
-            className="md:hidden p-2 rounded-lg hover:bg-blue-50 active:bg-blue-100 focus:outline-none transition-colors duration-200"
+            className="md:hidden p-2 rounded-lg hover:bg-brand-50 active:bg-brand-100 focus:outline-none transition-colors duration-200"
           >
-            <IoMenu className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
+            <IoMenu className="w-6 h-6 sm:w-7 sm:h-7 text-brand-600" />
           </button>
 
           {/* Spacer */}
@@ -108,11 +108,11 @@ const MainHeader = ({ toggleSidebar }) => {
               type="button"
               aria-label="Notifications"
               onClick={() => navigate("/notifications")}
-              className="relative p-2 rounded-full border border-blue-600 hover:bg-blue-50 active:bg-blue-100 transition-colors duration-200"
+              className="relative p-2 rounded-full border border-brand-600 hover:bg-brand-50 active:bg-brand-100 transition-colors duration-200"
             >
-              <IoNotificationsOutline className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+              <IoNotificationsOutline className="w-5 h-5 sm:w-6 sm:h-6 text-brand-600" />
               {notificationCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 text-white text-[10px] px-1 leading-none font-semibold">
+                <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-600 text-white text-[10px] px-1 leading-none font-semibold">
                   {notificationCount}
                 </span>
               )}
@@ -125,19 +125,19 @@ const MainHeader = ({ toggleSidebar }) => {
             >
               <img
                 src={displayImage}
-                className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 object-cover rounded-full border-2 border-blue-100"
+                className="w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 object-cover rounded-full border-2 border-brand-100"
                 alt="User Avatar"
                 onError={(e) => {
                   e.target.src = "/userimg.png";
                 }}
               />
               <div className="hidden sm:block">
-                <h3 className="hidden md:block text-blue-600 text-sm lg:text-base font-semibold leading-tight">
+                <h3 className="hidden md:block text-brand-700 text-sm lg:text-base font-semibold leading-tight">
                   {isLoading
                     ? "Loading..."
                     : displayName}
                 </h3>
-                <p className="text-blue-600 text-xs sm:text-sm lg:text-base font-semibold">
+                <p className="text-brand-600 text-xs sm:text-sm lg:text-base font-semibold">
                   {displayRole}
                 </p>
               </div>

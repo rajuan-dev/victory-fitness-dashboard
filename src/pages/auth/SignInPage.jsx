@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { IoEyeOffOutline, IoEyeOutline } from "react-icons/io5";
 import { Link, useNavigate } from "react-router-dom";
 import { clearUserInfo, ensureAdminSession, loginAdmin } from "../../../services/auth.service";
@@ -38,15 +38,14 @@ function SignInPage() {
         setIsCheckingSession(false);
       });
 
+    // Clear any plaintext password left over from an older version
+    localStorage.removeItem('rememberedPassword');
+
     const savedEmail = localStorage.getItem('rememberedEmail');
-    const savedPassword = localStorage.getItem('rememberedPassword');
     const rememberMe = localStorage.getItem('rememberMe') === 'true';
-    
-    if (rememberMe && savedEmail && savedPassword) {
-      setFormData({
-        email: savedEmail,
-        password: savedPassword
-      });
+
+    if (rememberMe && savedEmail) {
+      setFormData((prev) => ({ ...prev, email: savedEmail }));
       setIsChecked(true);
     }
 
@@ -58,27 +57,22 @@ function SignInPage() {
   const handleCheckboxChange = (event) => {
     const checked = event.target.checked;
     setIsChecked(checked);
-    
+
     if (checked) {
       localStorage.setItem('rememberedEmail', formData.email);
-      localStorage.setItem('rememberedPassword', formData.password);
       localStorage.setItem('rememberMe', 'true');
     } else {
       localStorage.removeItem('rememberedEmail');
-      localStorage.removeItem('rememberedPassword');
       localStorage.removeItem('rememberMe');
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    if (isChecked) {
-      localStorage.setItem(`remembered${name.charAt(0).toUpperCase() + name.slice(1)}`, value);
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (isChecked && name === 'email') {
+      localStorage.setItem('rememberedEmail', value);
     }
   };
 

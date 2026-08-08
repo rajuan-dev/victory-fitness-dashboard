@@ -40,12 +40,7 @@ export const getSessionToken = () => {
 // Retrieve user token from localStorage
 export const getUserToken = () => {
   if (typeof window === "undefined") return "";
-  const token = localStorage.getItem("accessToken");
-  if (!token) {
-    console.warn("Authorization token is missing or invalid.");
-    return "";
-  }
-  return token;
+  return localStorage.getItem("accessToken") || "";
 };
 
 export const storeResetToken = ({ resetToken }) => {
@@ -82,17 +77,13 @@ export const getResetToken = () => {
 // Retrieve user info (decoded token) from localStorage
 export const getUserInfo = () => {
   const authToken = getFromLocalStorage("accessToken");
-  if (authToken) {
-    try {
-      const decodedData = decodeAuthToken(authToken);
-      return decodedData;
-    } catch (error) {
-      console.error("Error decoding the token:", error);
-      removeAccessToken(); // Cleanup invalid token
-      return null; // Gracefully return null if decoding fails
-    }
+  if (!authToken) return null;
+  try {
+    return decodeAuthToken(authToken);
+  } catch (error) {
+    console.error("Error decoding the token:", error);
+    return null;
   }
-  return null; // If no token is found, return null
 };
 
 // Check if the user is logged in
@@ -364,6 +355,7 @@ export const clearUserInfo = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("resetToken");
     localStorage.removeItem("resetEmail");
+    localStorage.removeItem(API_URL_STORAGE_KEY);
   }
 };
 
