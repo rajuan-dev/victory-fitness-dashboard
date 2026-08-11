@@ -116,17 +116,31 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6" id="intelligence-dashboard">
-      <header className="overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-r from-brand-950 via-brand-800 to-accent-800 px-5 py-6 text-white shadow-lg sm:px-7">
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-accent-200">
-          Live intelligence layer
-        </p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">
-          Intelligence &amp; Marketing Dashboard
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm text-brand-100">
-          Product engagement, retention, revenue, and organic growth in one
-          decision view. Every section follows the filters below.
-        </p>
+      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-700 via-brand-600 to-brand-900 px-6 py-7 text-white shadow-xl border border-brand-500/30 sm:px-8 sm:py-8">
+        {/* Decorative background glow effects for visual depth */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-accent-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-brand-400/30 blur-3xl" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-300 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-400"></span>
+            </span>
+            <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-accent-200 backdrop-blur-md border border-white/20 shadow-xs">
+              Live intelligence layer
+            </span>
+          </div>
+
+          <h1 className="text-2xl font-black tracking-tight text-white drop-shadow-sm sm:text-3xl lg:text-4xl">
+            Intelligence &amp; Marketing Dashboard
+          </h1>
+
+          <p className="mt-2.5 max-w-3xl text-sm font-medium text-brand-100 sm:text-base leading-relaxed">
+            Product engagement, retention, revenue, and organic growth in one
+            decision view. Every section follows the filters below.
+          </p>
+        </div>
       </header>
       <AnalyticsFilterBar />
 
