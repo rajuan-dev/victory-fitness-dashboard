@@ -27,6 +27,7 @@ const Applications = lazy(() => import("../pages/Applications/Applications"));
 const SupportInbox = lazy(() => import("../pages/SupportInbox/SupportInbox"));
 const Homepage = lazy(() => import("../pages/Homepage/Homepage"));
 const AuditLogs = lazy(() => import("../pages/AuditLogs/AuditLogs"));
+const TrialExperience = lazy(() => import("../pages/TrialExperience/TrialExperience"));
 
 function RouteFallback() {
   return (
@@ -138,7 +139,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/trial-analytics",
-        element: <Navigate to="/#trial-funnel" replace />,
+        element: withSuspense(TrialExperience),
       },
       {
         path: "/audit-logs",

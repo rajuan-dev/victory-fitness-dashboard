@@ -5,7 +5,7 @@ import { IoMdSettings } from "react-icons/io";
 import { IoCloseSharp, IoLogOutOutline } from "react-icons/io5";
 import { MdCardMembership, MdOutlineGroups, MdQuiz } from "react-icons/md";
 import { FaDumbbell, FaTrophy, FaGraduationCap, FaUsers, FaFileAlt, FaHeadset } from "react-icons/fa";
-import { MdFormatQuote, MdAnalytics } from "react-icons/md";
+import { MdFormatQuote, MdAnalytics, MdWorkspacePremium } from "react-icons/md";
 import { logoutAdmin } from "../../../services/auth.service";
 
 /**
@@ -22,6 +22,7 @@ const NAV_GROUPS = [
       { to: "/challenges", label: "Challenges", icon: FaTrophy },
       { to: "/masterclasses", label: "Masterclasses", icon: FaGraduationCap },
       { to: "/subscriptions", label: "Subscriptions", icon: MdCardMembership },
+      { to: "/trial-analytics", label: "Gold Trial", icon: MdWorkspacePremium },
       { to: "/all-subscribers", label: "All Subscribers", icon: FaUsers },
       { to: "/community", label: "Community", icon: MdOutlineGroups },
       { to: "/applications", label: "Applications", icon: FaFileAlt },
