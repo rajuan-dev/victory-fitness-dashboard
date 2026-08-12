@@ -19,6 +19,9 @@ const formatEuroPrice = (price) => {
   return `EUR ${price}`;
 };
 
+const visibleSubscriptionPlans = (plans) =>
+  plans.filter((plan) => String(plan.tier || '').toUpperCase() !== 'VICTORY INNER CIRCLE');
+
 const Subscriptions = () => {
   const [plans, setPlans] = useState([]);
   const [isYearly, setIsYearly] = useState(true);
@@ -184,6 +187,7 @@ const Subscriptions = () => {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Manage Subscriptions</h1>
         </div>
+        {/*
         <div>
           <button
             onClick={handleAdd}
@@ -193,6 +197,7 @@ const Subscriptions = () => {
             Add New Plan
           </button>
         </div>
+        */}
       </div>
 
       <div className="flex flex-col items-center justify-center text-center mt-6 mb-12">
@@ -217,7 +222,7 @@ const Subscriptions = () => {
       </div>
 
       <div className="flex flex-wrap justify-center items-stretch gap-6 w-full mx-auto px-4">
-        {plans.map((plan) => {
+        {visibleSubscriptionPlans(plans).map((plan) => {
           const pricing = getPlanPricingDetails(plan, isYearly);
 
           return (
