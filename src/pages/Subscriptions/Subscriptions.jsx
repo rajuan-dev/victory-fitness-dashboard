@@ -22,6 +22,25 @@ const formatEuroPrice = (price) => {
 const visibleSubscriptionPlans = (plans) =>
   plans.filter((plan) => String(plan.tier || '').toUpperCase() !== 'VICTORY INNER CIRCLE');
 
+const FEATURE_ACCESS_OPTIONS = [
+  { label: 'Home', value: 'home' },
+  { label: 'Workout Library', value: 'workout' },
+  { label: 'Challenges', value: 'challenge' },
+  { label: 'Community', value: 'community' },
+  { label: 'Meal Plan', value: 'mealPlan' },
+  { label: 'Nutrition Tracker', value: 'nutrition_tracker' },
+  { label: 'AI Meal Analysis', value: 'meal_analysis' },
+  { label: 'Profile', value: 'profile' },
+  { label: 'Workout Plan AI', value: 'workoutplan' },
+  { label: 'Longevity OS', value: 'longevity' },
+  { label: 'Application', value: 'application' },
+  { label: 'Coach Victor', value: 'coach_victor' },
+  { label: 'Longevity Plan AI', value: 'longevity_plan' },
+];
+
+const normalizeFeatureAccess = (items) =>
+  Array.from(new Set((Array.isArray(items) ? items : []).map((item) => String(item).trim()).filter(Boolean)));
+
 const Subscriptions = () => {
   const [plans, setPlans] = useState([]);
   const [isYearly, setIsYearly] = useState(true);
@@ -101,6 +120,7 @@ const Subscriptions = () => {
     form.resetFields();
     form.setFieldsValue({
       features: [''],
+      featureAccess: ['home', 'workout', 'challenge', 'community', 'profile'],
       isApplicationOnly: false,
       isMostPopular: false,
       discountPercentage: null,
@@ -139,6 +159,8 @@ const Subscriptions = () => {
       const isApplicationOnly = Boolean(values.isApplicationOnly);
       const payload = {
         ...values,
+        featureAccess: normalizeFeatureAccess(values.featureAccess),
+        features: normalizeFeatureAccess(values.features),
         priceMonthly: isApplicationOnly ? null : values.priceMonthly,
         priceYearly: isApplicationOnly ? null : values.priceYearly,
         discountPercentage: isApplicationOnly ? null : discountPercentage,
@@ -325,6 +347,19 @@ const Subscriptions = () => {
                 ))}
               </div>
 
+              <div className="mb-6 flex flex-wrap gap-2">
+                {normalizeFeatureAccess(plan.featureAccess).slice(0, 4).map((feature) => (
+                  <span key={feature} className="rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-200">
+                    {feature}
+                  </span>
+                ))}
+                {normalizeFeatureAccess(plan.featureAccess).length > 4 ? (
+                  <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                    +{normalizeFeatureAccess(plan.featureAccess).length - 4}
+                  </span>
+                ) : null}
+              </div>
+
               <button
                 className={`w-full py-4 rounded-xl text-sm font-bold tracking-wider transition-all ${
                   plan.isMostPopular
@@ -458,6 +493,21 @@ const Subscriptions = () => {
             className="mb-6"
           >
             <Switch checkedChildren="Mark as Most Popular" unCheckedChildren="Standard Plan" />
+          </Form.Item>
+
+          <Form.Item
+            name="featureAccess"
+            label={<span className="font-medium text-slate-700">Included App Access</span>}
+            rules={[{ required: true, message: 'Select at least one app module for this plan.' }]}
+            className="mb-6"
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              size="large"
+              placeholder="Choose the app modules this subscription unlocks"
+              options={FEATURE_ACCESS_OPTIONS}
+            />
           </Form.Item>
 
           <div className="mb-2">
